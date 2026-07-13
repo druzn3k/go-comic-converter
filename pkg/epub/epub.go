@@ -35,8 +35,8 @@ type epub struct {
 	Publisher string
 	UpdatedAt string
 
-	templateProcessor *template.Template
-	imageProcessor    epubimageprocessor.EPUBImageProcessor
+	templates     map[string]*template.Template
+	imageProcessor epubimageprocessor.EPUBImageProcessor
 }
 
 type epubPart struct {
@@ -44,14 +44,52 @@ type epubPart struct {
 	Images []epubimage.EPUBImage
 }
 
+// xmlEscape escapes special XML characters in user-provided strings.
+func xmlEscape(s string) string {
+	var escaped strings.Builder
+	escaped.Grow(len(s))
+	for _, r := range s {
+		switch r {
+		case '&':
+			escaped.WriteString("&amp;")
+		case '<':
+			escaped.WriteString("&lt;")
+		case '>':
+			escaped.WriteString("&gt;")
+		case '"':
+			escaped.WriteString("&quot;")
+		case '\'':
+			escaped.WriteString("&apos;")
+		default:
+			escaped.WriteRune(r)
+		}
+	}
+	return escaped.String()
+}
+
+// newlineRegex is used by render() to collapse multiple newlines.
+var newlineRegex = regexp.MustCompile("\n+")
+
 // New initialize EPUB
 func New(options epuboptions.EPUBOptions) EPUB {
 	uid := uuid.Must(uuid.NewV4())
-	tmpl := template.New("parser")
-	tmpl.Funcs(template.FuncMap{
-		"mod":  func(i, j int) bool { return i%j == 0 },
-		"zoom": func(s int, z float32) int { return int(float32(s) * z) },
-	})
+
+	funcMap := template.FuncMap{
+		"mod":       func(i, j int) bool { return i%j == 0 },
+		"zoom":      func(s int, z float32) int { return int(float32(s) * z) },
+		"xmlEscape": xmlEscape,
+	}
+
+	// Pre-parse all templates once
+	templates := make(map[string]*template.Template, 3)
+	for name, src := range map[string]string{
+		"text":  epubtemplates.Text,
+		"blank": epubtemplates.Blank,
+		"style": epubtemplates.Style,
+	} {
+		t := template.Must(template.New(name).Funcs(funcMap).Parse(src))
+		templates[name] = t
+	}
 
 	var imageProcessor epubimageprocessor.EPUBImageProcessor
 	if options.Image.Format == "copy" {
@@ -61,30 +99,32 @@ func New(options epuboptions.EPUBOptions) EPUB {
 	}
 
 	return epub{
-		EPUBOptions:       options,
-		UID:               uid.String(),
-		Publisher:         "GO Comic Converter",
-		UpdatedAt:         time.Now().UTC().Format("2006-01-02T15:04:05Z"),
-		templateProcessor: tmpl,
-		imageProcessor:    imageProcessor,
+		EPUBOptions:    options,
+		UID:            uid.String(),
+		Publisher:      "GO Comic Converter",
+		UpdatedAt:      time.Now().UTC().Format("2006-01-02T15:04:05Z"),
+		templates:      templates,
+		imageProcessor: imageProcessor,
 	}
 }
-
-// render templates
-func (e epub) render(templateString string, data map[string]any) string {
+// render templates by name from the pre-parsed cache
+func (e epub) render(name string, data map[string]any) string {
+	tmpl, ok := e.templates[name]
+	if !ok {
+		panic("unknown template: " + name)
+	}
 	var result strings.Builder
-	tmpl := template.Must(e.templateProcessor.Parse(templateString))
 	if err := tmpl.Execute(&result, data); err != nil {
 		panic(err)
 	}
-	return regexp.MustCompile("\n+").ReplaceAllString(result.String(), "\n")
+	return newlineRegex.ReplaceAllString(result.String(), "\n")
 }
 
 // write image to the zip
 func (e epub) writeImage(wz epubzip.EPUBZip, img epubimage.EPUBImage, zipImg *zip.File) error {
 	err := wz.WriteContent(
 		img.EPUBPagePath(),
-		[]byte(e.render(epubtemplates.Text, map[string]any{
+		[]byte(e.render("text", map[string]any{
 			"Title":      "Image " + utils.IntToString(img.Id) + " Part " + utils.IntToString(img.Part),
 			"ViewPort":   e.Image.View.Port(),
 			"ImagePath":  img.ImgPath(),
@@ -102,7 +142,7 @@ func (e epub) writeImage(wz epubzip.EPUBZip, img epubimage.EPUBImage, zipImg *zi
 func (e epub) writeBlank(wz epubzip.EPUBZip, img epubimage.EPUBImage) error {
 	return wz.WriteContent(
 		img.EPUBSpacePath(),
-		[]byte(e.render(epubtemplates.Blank, map[string]any{
+		[]byte(e.render("blank", map[string]any{
 			"Title":    "Blank Page " + utils.IntToString(img.Id),
 			"ViewPort": e.Image.View.Port(),
 		})),
@@ -120,7 +160,7 @@ func (e epub) writeCoverImage(wz epubzip.EPUBZip, img epubimage.EPUBImage, part,
 
 	if err := wz.WriteContent(
 		"OEBPS/Text/cover.xhtml",
-		[]byte(e.render(epubtemplates.Text, map[string]any{
+		[]byte(e.render("text", map[string]any{
 			"Title":      title,
 			"ViewPort":   e.Image.View.Port(),
 			"ImagePath":  "Images/cover.jpeg",
@@ -166,7 +206,7 @@ func (e epub) writeTitleImage(wz epubzip.EPUBZip, img epubimage.EPUBImage, title
 	if !e.Image.View.PortraitOnly {
 		if err := wz.WriteContent(
 			"OEBPS/Text/space_title.xhtml",
-			[]byte(e.render(epubtemplates.Blank, map[string]any{
+			[]byte(e.render("blank", map[string]any{
 				"Title":    "Blank Page Title",
 				"ViewPort": e.Image.View.Port(),
 			})),
@@ -177,7 +217,7 @@ func (e epub) writeTitleImage(wz epubzip.EPUBZip, img epubimage.EPUBImage, title
 
 	if err := wz.WriteContent(
 		"OEBPS/Text/title.xhtml",
-		[]byte(e.render(epubtemplates.Text, map[string]any{
+		[]byte(e.render("text", map[string]any{
 			"Title":      title,
 			"ViewPort":   e.Image.View.Port(),
 			"ImagePath":  "Images/title.jpeg",
@@ -381,7 +421,7 @@ func (e epub) writePart(path string, currentPart, totalParts int, part epubPart,
 			Total:        totalParts,
 		}.String()},
 		{"OEBPS/toc.xhtml", epubtemplates.Toc(title, hasTitlePage, e.StripFirstDirectoryFromToc, part.Images)},
-		{"OEBPS/Text/style.css", e.render(epubtemplates.Style, map[string]any{
+		{"OEBPS/Text/style.css", e.render("style", map[string]any{
 			"View": e.Image.View,
 		})},
 	}
