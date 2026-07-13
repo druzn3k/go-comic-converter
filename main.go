@@ -15,10 +15,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime/debug"
+	"sort"
 	"syscall"
 
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/converter"
+	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimagepassthrough"
+	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimageprocessor"
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/utils"
 	"github.com/celogeek/go-comic-converter/v3/pkg/comic/output"
 	"github.com/celogeek/go-comic-converter/v3/pkg/epub"
@@ -55,7 +59,6 @@ func version() {
 		utils.Fatalln("failed to fetch current version")
 	}
 
-	// Fetch latest version from GitHub API
 	latestVersion := "unknown"
 	resp, err := http.Get("https://api.github.com/repos/celogeek/go-comic-converter/tags")
 	if err == nil {
@@ -131,10 +134,7 @@ func generate(ctx context.Context, cmd *converter.Converter) {
 		utils.Println(cmd.Options)
 	}
 
-	// Determine output format:
-	// 1. Explicit -output-format flag
-	// 2. Profile PreferredFormat
-	// 3. Default to "epub"
+	// Determine output format
 	format := cmd.Options.OutputFormat
 	if format == "" || format == "epub" {
 		if profile := cmd.Options.GetProfile(); profile != nil && profile.PreferredFormat != "" {
@@ -146,7 +146,7 @@ func generate(ctx context.Context, cmd *converter.Converter) {
 	}
 
 	if format == "epub" {
-		// Use existing EPUB generation path
+		// Legacy EPUB path
 		if err := epub.New(cmd.Options.EPUBOptions).Write(ctx); err != nil {
 			if errors.Is(err, context.Canceled) {
 				utils.Println("\nCancelled")
@@ -156,19 +156,70 @@ func generate(ctx context.Context, cmd *converter.Converter) {
 				if !cmd.Options.Dry {
 					cmd.Stats()
 				}
-				utils.Fatalf("Error: %v\n", err)
-			} else {
-				utils.Fatalf("Error: %v\n", err)
 			}
+			utils.Fatalf("Error: %v\n", err)
 		}
 	} else {
-		// Use OutputWriter registry for other formats
+		// New OutputWriter path with image processing
+		var imageProcessor epubimageprocessor.EPUBImageProcessor
+		if cmd.Options.Image.Format == "copy" {
+			imageProcessor = epubimagepassthrough.New(cmd.Options.EPUBOptions)
+		} else {
+			imageProcessor = epubimageprocessor.New(cmd.Options.EPUBOptions)
+		}
+
+		images, err := imageProcessor.Load(ctx)
+		if err != nil {
+			utils.Fatalf("Error: %v\n", err)
+		}
+
+		// Sort and validate
+		sort.Slice(images, func(i, j int) bool {
+			if images[i].Id == images[j].Id {
+				return images[i].Part < images[j].Part
+			}
+			return images[i].Id < images[j].Id
+		})
+
+		if cmd.Options.Strict {
+			for _, img := range images {
+				if img.Error != nil {
+					utils.Fatalf("Error: strict mode: %s: %v\n",
+						filepath.Join(img.Path, img.Name), img.Error)
+				}
+			}
+		}
+
+		if len(images) == 0 {
+			utils.Fatalf("Error: no images found\n")
+		}
+
+		// Separate cover and build parts
+		cover := images[0]
+		pageImages := images
+		if cmd.Options.Image.HasCover {
+			pageImages = images[1:]
+		}
+
+		parts := []output.OutputPart{{
+			Cover:      cover,
+			Images:     pageImages,
+			PartNumber: 1,
+			TotalParts: 1,
+			Metadata: output.PartMetadata{
+				Title:       cmd.Options.Title,
+				Author:      cmd.Options.Author,
+				Publisher:   "GO Comic Converter",
+				ImageConfig: cmd.Options.Image,
+			},
+		}}
+
 		writer := output.Get(format)
 		if writer == nil {
 			cmd.Fatal(fmt.Errorf("unsupported output format: %s", format))
 		}
 
-		paths, err := writer.Write(ctx, nil, cmd.Options.EPUBOptions)
+		paths, err := writer.Write(ctx, parts, cmd.Options.EPUBOptions)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
 				utils.Println("\nCancelled")
