@@ -2,6 +2,7 @@
 package epubimageprocessor
 
 import (
+	"context"
 	"fmt"
 	"image"
 	"image/color"
@@ -18,7 +19,7 @@ import (
 )
 
 type EPUBImageProcessor interface {
-	Load() (images []epubimage.EPUBImage, err error)
+	Load(ctx context.Context) (images []epubimage.EPUBImage, err error)
 	CoverTitleData(o CoverTitleDataOptions) (epubzip.Image, error)
 }
 
@@ -31,9 +32,8 @@ func New(o epuboptions.EPUBOptions) EPUBImageProcessor {
 }
 
 // Load extract and convert images
-func (e ePUBImageProcessor) Load() (images []epubimage.EPUBImage, err error) {
-	images = make([]epubimage.EPUBImage, 0)
-	imageCount, imageInput, err := e.load()
+func (e ePUBImageProcessor) Load(ctx context.Context) (images []epubimage.EPUBImage, err error) {
+	imageCount, imageInput, err := e.load(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +90,12 @@ func (e ePUBImageProcessor) Load() (images []epubimage.EPUBImage, err error) {
 			}()
 
 			for input := range imageInput {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
 				img := e.transformImage(input, 0, e.Image.Manga)
 
 				// do not keep double page if requested
@@ -106,7 +112,11 @@ func (e ePUBImageProcessor) Load() (images []epubimage.EPUBImage, err error) {
 					if img.Id > 0 {
 						img.Raw = nil
 					}
-					imageOutput <- img
+					select {
+					case imageOutput <- img:
+					case <-ctx.Done():
+						return
+					}
 				}
 
 				// DOUBLE PAGE
@@ -126,7 +136,11 @@ func (e ePUBImageProcessor) Load() (images []epubimage.EPUBImage, err error) {
 						return
 					}
 					img.Raw = nil
-					imageOutput <- img
+					select {
+					case imageOutput <- img:
+					case <-ctx.Done():
+						return
+					}
 				}
 			}
 		}()

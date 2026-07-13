@@ -1,6 +1,7 @@
 package epubimageprocessor
 
 import (
+	"context"
 	"bytes"
 	"image"
 	"image/color"
@@ -88,7 +89,7 @@ func TestLoadDryMode(t *testing.T) {
 	}
 
 	p := New(opts)
-	images, err := p.Load()
+	images, err := p.Load(context.Background())
 	if err != nil {
 		t.Fatalf("dry Load() should succeed: %v", err)
 	}
@@ -131,7 +132,7 @@ func TestLoadDirSkipsSymlinks(t *testing.T) {
 	}
 
 	p := New(opts)
-	images, err := p.Load()
+	images, err := p.Load(context.Background())
 	if err != nil {
 		t.Fatalf("Load() should succeed: %v", err)
 	}

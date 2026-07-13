@@ -1,6 +1,7 @@
 package epubimagepassthrough
 
 import (
+	"context"
 	"bytes"
 	"image"
 	"image/color"
@@ -59,7 +60,7 @@ func TestPassthroughLoadDirSkipsSymlinks(t *testing.T) {
 	}
 
 	p := New(opts)
-	images, err := p.Load()
+	images, err := p.Load(context.Background())
 	if err != nil {
 		t.Fatalf("Load() should succeed: %v", err)
 	}

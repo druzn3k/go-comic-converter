@@ -5,6 +5,7 @@ import (
 	"archive/zip"
 	"errors"
 	"fmt"
+	"context"
 	"math"
 	"path/filepath"
 	"regexp"
@@ -31,7 +32,7 @@ import (
 var ErrImageCorrupted = errors.New("one or more images are corrupted")
 
 type EPUB interface {
-	Write() error
+	Write(ctx context.Context) error
 }
 
 type epub struct {
@@ -254,8 +255,8 @@ func (e epub) writeTitleImage(wz epubzip.EPUBZip, img epubimage.EPUBImage, title
 }
 
 // extract image and split it into part
-func (e epub) getParts() (parts []epubPart, imgStorage epubzip.StorageImageReader, err error) {
-	images, err := e.imageProcessor.Load()
+func (e epub) getParts(ctx context.Context) (parts []epubPart, imgStorage epubzip.StorageImageReader, err error) {
+	images, err := e.imageProcessor.Load(ctx)
 
 	if err != nil {
 		return
@@ -480,8 +481,8 @@ func (e epub) writePart(path string, currentPart, totalParts int, part epubPart,
 }
 
 // create the zip
-func (e epub) Write() error {
-	epubParts, imgStorage, err := e.getParts()
+func (e epub) Write(ctx context.Context) error {
+	epubParts, imgStorage, err := e.getParts(ctx)
 	if err != nil {
 		return err
 	}

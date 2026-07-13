@@ -1,6 +1,7 @@
 package epubimagepassthrough
 
 import (
+	"context"
 	"archive/zip"
 	"bytes"
 	"errors"
@@ -29,20 +30,20 @@ type ePUBImagePassthrough struct {
 	epuboptions.EPUBOptions
 }
 
-func (e ePUBImagePassthrough) Load() (images []epubimage.EPUBImage, err error) {
+func (e ePUBImagePassthrough) Load(ctx context.Context) (images []epubimage.EPUBImage, err error) {
 	fi, err := os.Stat(e.Input)
 	if err != nil {
 		return
 	}
 
 	if fi.IsDir() {
-		return e.loadDir()
+		return e.loadDir(ctx)
 	} else {
 		switch ext := strings.ToLower(filepath.Ext(e.Input)); ext {
 		case ".cbz", ".zip":
-			return e.loadCbz()
+			return e.loadCbz(ctx)
 		case ".cbr", ".rar":
-			return e.loadCbr()
+			return e.loadCbr(ctx)
 		default:
 			return nil, fmt.Errorf("unknown file format (%s): support .cbz, .zip, .cbr, .rar", ext)
 		}
@@ -59,7 +60,7 @@ func New(o epuboptions.EPUBOptions) epubimageprocessor.EPUBImageProcessor {
 	return ePUBImagePassthrough{o}
 }
 
-func (e ePUBImagePassthrough) loadDir() (images []epubimage.EPUBImage, err error) {
+func (e ePUBImagePassthrough) loadDir(ctx context.Context) (images []epubimage.EPUBImage, err error) {
 	imagesPath := make([]string, 0)
 
 	input := filepath.Clean(e.Input)
@@ -139,7 +140,7 @@ func (e ePUBImagePassthrough) loadDir() (images []epubimage.EPUBImage, err error
 
 }
 
-func (e ePUBImagePassthrough) loadCbz() (images []epubimage.EPUBImage, err error) {
+func (e ePUBImagePassthrough) loadCbz(ctx context.Context) (images []epubimage.EPUBImage, err error) {
 	images = make([]epubimage.EPUBImage, 0)
 
 	input := filepath.Clean(e.Input)
@@ -228,7 +229,7 @@ func (e ePUBImagePassthrough) loadCbz() (images []epubimage.EPUBImage, err error
 	return
 }
 
-func (e ePUBImagePassthrough) loadCbr() (images []epubimage.EPUBImage, err error) {
+func (e ePUBImagePassthrough) loadCbr(ctx context.Context) (images []epubimage.EPUBImage, err error) {
 	images = make([]epubimage.EPUBImage, 0)
 
 	var isSolid bool

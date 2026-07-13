@@ -8,11 +8,14 @@ EPUB is now support by Amazon through [SendToKindle](https://www.amazon.com/gp/s
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
+	"os/signal"
 	"runtime/debug"
+	"syscall"
 
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/converter"
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/utils"
@@ -20,6 +23,9 @@ import (
 )
 
 func main() {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
 	cmd := converter.New()
 	if err := cmd.LoadConfig(); err != nil {
 		cmd.Fatal(err)
@@ -37,9 +43,8 @@ func main() {
 	case cmd.Options.Reset:
 		reset(cmd)
 	default:
-		generate(cmd)
+		generate(ctx, cmd)
 	}
-
 }
 
 func version() {
@@ -106,7 +111,7 @@ func reset(cmd *converter.Converter) {
 	)
 }
 
-func generate(cmd *converter.Converter) {
+func generate(ctx context.Context, cmd *converter.Converter) {
 	if err := cmd.Validate(); err != nil {
 		cmd.Fatal(err)
 	}
@@ -124,9 +129,12 @@ func generate(cmd *converter.Converter) {
 		utils.Println(cmd.Options)
 	}
 
-	if err := epub.New(cmd.Options.EPUBOptions).Write(); err != nil {
+	if err := epub.New(cmd.Options.EPUBOptions).Write(ctx); err != nil {
+		if errors.Is(err, context.Canceled) {
+			utils.Println("\nCancelled")
+			os.Exit(1)
+		}
 		if errors.Is(err, epub.ErrImageCorrupted) {
-			// EPUB was still written with placeholders, print stats
 			if !cmd.Options.Dry {
 				cmd.Stats()
 			}

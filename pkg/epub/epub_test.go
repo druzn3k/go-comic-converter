@@ -1,6 +1,7 @@
 package epub
 
 import (
+	"context"
 	"bytes"
 	"errors"
 	"fmt"
@@ -242,7 +243,7 @@ func TestWriteReturnsErrImageCorrupted(t *testing.T) {
 	}
 
 	e := New(opts)
-	err := e.Write()
+	err := e.Write(context.Background())
 	if err == nil {
 		t.Fatal("expected ErrImageCorrupted with corrupt images, got nil")
 	}
@@ -284,7 +285,7 @@ func TestWriteStrictReturnsEarly(t *testing.T) {
 	}
 
 	e := New(opts)
-	err := e.Write()
+	err := e.Write(context.Background())
 	if err == nil {
 		t.Fatal("expected error in strict mode, got nil")
 	}

@@ -1,8 +1,9 @@
 package epubimageprocessor
 
 import (
-	"archive/zip"
+	"context"
 	"bytes"
+	"archive/zip"
 	"errors"
 	"fmt"
 	"image"
@@ -85,7 +86,7 @@ func (e ePUBImageProcessor) isSupportedImage(path string) bool {
 }
 
 // load images from input
-func (e ePUBImageProcessor) load() (totalImages int, output chan task, err error) {
+func (e ePUBImageProcessor) load(ctx context.Context) (totalImages int, output chan task, err error) {
 	fi, err := os.Stat(e.Input)
 	if err != nil {
 		return
@@ -93,15 +94,15 @@ func (e ePUBImageProcessor) load() (totalImages int, output chan task, err error
 
 	// get all images though a channel of bytes
 	if fi.IsDir() {
-		return e.loadDir()
+		return e.loadDir(ctx)
 	} else {
 		switch ext := strings.ToLower(filepath.Ext(e.Input)); ext {
 		case ".cbz", ".zip":
-			return e.loadCbz()
+			return e.loadCbz(ctx)
 		case ".cbr", ".rar":
-			return e.loadCbr()
+			return e.loadCbr(ctx)
 		case ".pdf":
-			return e.loadPdf()
+			return e.loadPdf(ctx)
 		default:
 			err = fmt.Errorf("unknown file format (%s): support .cbz, .zip, .cbr, .rar, .pdf", ext)
 			return
@@ -133,7 +134,7 @@ func (e ePUBImageProcessor) corruptedImage(path, name string) image.Image {
 }
 
 // load a directory of images
-func (e ePUBImageProcessor) loadDir() (totalImages int, output chan task, err error) {
+func (e ePUBImageProcessor) loadDir(ctx context.Context) (totalImages int, output chan task, err error) {
 	images := make([]string, 0)
 
 	input := filepath.Clean(e.Input)
@@ -185,6 +186,11 @@ func (e ePUBImageProcessor) loadDir() (totalImages int, output chan task, err er
 		go func() {
 			defer wg.Done()
 			for job := range jobs {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
 				var img image.Image
 				var err error
 				if !e.Dry {
@@ -226,7 +232,7 @@ func (e ePUBImageProcessor) loadDir() (totalImages int, output chan task, err er
 }
 
 // load a zip file that include images
-func (e ePUBImageProcessor) loadCbz() (totalImages int, output chan task, err error) {
+func (e ePUBImageProcessor) loadCbz(ctx context.Context) (totalImages int, output chan task, err error) {
 	r, err := zip.OpenReader(e.Input)
 	if err != nil {
 		return
@@ -276,7 +282,17 @@ func (e ePUBImageProcessor) loadCbz() (totalImages int, output chan task, err er
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
 			for job := range jobs {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
 				var img image.Image
 				var err error
 				if !e.Dry {
@@ -312,7 +328,7 @@ func (e ePUBImageProcessor) loadCbz() (totalImages int, output chan task, err er
 }
 
 // load a rar file that include images
-func (e ePUBImageProcessor) loadCbr() (totalImages int, output chan task, err error) {
+func (e ePUBImageProcessor) loadCbr(ctx context.Context) (totalImages int, output chan task, err error) {
 	var isSolid bool
 	files, err := rardecode.List(e.Input)
 	if err != nil {
@@ -475,7 +491,7 @@ func (e ePUBImageProcessor) loadCbr() (totalImages int, output chan task, err er
 }
 
 // extract image from a pdf
-func (e ePUBImageProcessor) loadPdf() (totalImages int, output chan task, err error) {
+func (e ePUBImageProcessor) loadPdf(ctx context.Context) (totalImages int, output chan task, err error) {
 	pdf := pdfread.Load(e.Input)
 	if pdf == nil {
 		err = fmt.Errorf("can't read pdf")
