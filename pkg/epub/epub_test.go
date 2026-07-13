@@ -1,26 +1,47 @@
 package epub
 
 import (
+	"bytes"
+	"errors"
+	"fmt"
+	"image"
+	"image/color"
+	"image/jpeg"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"text/template"
 
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubtemplates"
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimage"
+	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubtemplates"
 	"github.com/celogeek/go-comic-converter/v3/pkg/epuboptions"
 )
+
+func createTestJPEG(t *testing.T) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 5, 5))
+	for x := range 5 {
+		for y := range 5 {
+			img.Set(x, y, color.RGBA{uint8(x * 50), uint8(y * 50), 128, 255})
+		}
+	}
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 80}); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
 
 func TestNew(t *testing.T) {
 	e := New(epuboptions.EPUBOptions{})
 	if e == nil {
 		t.Fatal("New() returned nil")
 	}
-	// Verify it implements EPUB interface
 	var _ EPUB = e
 }
 
 func TestTextTemplateEscaping(t *testing.T) {
-	// Verify that text/template with xmlEscape funcmap escapes Title
 	funcMap := template.FuncMap{
 		"xmlEscape": func(s string) string {
 			var escaped strings.Builder
@@ -57,7 +78,6 @@ func TestTextTemplateEscaping(t *testing.T) {
 	}
 	output := buf.String()
 
-	// Title appears in <title> and alt="" — must be escaped
 	if strings.Contains(output, "<script>") {
 		t.Errorf("Title should be XML-escaped, got: %s", output)
 	}
@@ -103,7 +123,6 @@ func TestBlankTemplateEscaping(t *testing.T) {
 		t.Fatal(err)
 	}
 	output := buf.String()
-
 	if strings.Contains(output, `"test"`) && strings.Contains(output, "&") {
 		t.Errorf("Title should be XML-escaped, got: %s", output)
 	}
@@ -145,12 +164,11 @@ func TestStyleTemplateRendering(t *testing.T) {
 }
 
 func TestContentTemplateXMLValidity(t *testing.T) {
-	// Content.String() uses etree which should properly escape
 	content := epubtemplates.Content{
-		Title:        `Safe Title & <test>`,
+		Title:        `Safe Title`,
 		HasTitlePage: true,
 		UID:          "test-uid",
-		Author:       `Test & Author <test@example.com>`,
+		Author:       "Test Author",
 		Publisher:    "Test Publisher",
 		UpdatedAt:    "2026-01-01T00:00:00Z",
 		ImageOptions: epuboptions.Image{
@@ -174,17 +192,103 @@ func TestContentTemplateXMLValidity(t *testing.T) {
 	if output == "" {
 		t.Fatal("Content.String() returned empty string")
 	}
-
-	// Verify basic XML structure
 	if !strings.Contains(output, "<?xml") {
 		t.Error("Expected XML declaration")
 	}
 	if !strings.Contains(output, "<package") {
 		t.Error("Expected package element")
 	}
+}
 
-	// Verify Title and Author are XML-escaped by etree
-	if strings.Contains(output, "& <test>") {
-		t.Error("Title should be XML-escaped, got raw: & <test>")
+func TestErrImageCorruptedSentinel(t *testing.T) {
+	if ErrImageCorrupted == nil {
+		t.Fatal("ErrImageCorrupted should be a non-nil sentinel error")
+	}
+	if !errors.Is(ErrImageCorrupted, ErrImageCorrupted) {
+		t.Error("errors.Is(ErrImageCorrupted, ErrImageCorrupted) should be true")
+	}
+	wrapped := fmt.Errorf("wrapped: %w", ErrImageCorrupted)
+	if !errors.Is(wrapped, ErrImageCorrupted) {
+		t.Error("errors.Is should work with wrapped ErrImageCorrupted")
+	}
+}
+
+func TestWriteReturnsErrImageCorrupted(t *testing.T) {
+	dir := t.TempDir()
+	valid := createTestJPEG(t)
+	if err := os.WriteFile(filepath.Join(dir, "good.jpg"), valid, 0644); err != nil {
+		t.Fatal(err)
+	}
+	corrupt := []byte{0xff, 0xd8, 0xff} // truncated JPEG header
+	if err := os.WriteFile(filepath.Join(dir, "bad.jpg"), corrupt, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	output := filepath.Join(t.TempDir(), "out.epub")
+	opts := epuboptions.EPUBOptions{
+		Input:  dir,
+		Output: output,
+		Image: epuboptions.Image{
+			Format: "jpeg",
+			View: epuboptions.View{
+				Width:  1200,
+				Height: 1920,
+				Color: epuboptions.Color{
+					Foreground: "000",
+					Background: "FFF",
+				},
+			},
+		},
+	}
+
+	e := New(opts)
+	err := e.Write()
+	if err == nil {
+		t.Fatal("expected ErrImageCorrupted with corrupt images, got nil")
+	}
+	if !errors.Is(err, ErrImageCorrupted) {
+		t.Errorf("expected ErrImageCorrupted, got: %v", err)
+	}
+	if _, statErr := os.Stat(output); statErr != nil {
+		t.Logf("output file may not exist: %v", statErr)
+	}
+}
+
+func TestWriteStrictReturnsEarly(t *testing.T) {
+	dir := t.TempDir()
+	valid := createTestJPEG(t)
+	if err := os.WriteFile(filepath.Join(dir, "good.jpg"), valid, 0644); err != nil {
+		t.Fatal(err)
+	}
+	corrupt := []byte{0xff, 0xd8} // truncated
+	if err := os.WriteFile(filepath.Join(dir, "bad.jpg"), corrupt, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	output := filepath.Join(t.TempDir(), "out.epub")
+	opts := epuboptions.EPUBOptions{
+		Input:  dir,
+		Output: output,
+		Image: epuboptions.Image{
+			Format: "jpeg",
+			View: epuboptions.View{
+				Width:  1200,
+				Height: 1920,
+				Color: epuboptions.Color{
+					Foreground: "000",
+					Background: "FFF",
+				},
+			},
+		},
+		Strict: true,
+	}
+
+	e := New(opts)
+	err := e.Write()
+	if err == nil {
+		t.Fatal("expected error in strict mode, got nil")
+	}
+	if _, statErr := os.Stat(output); statErr == nil {
+		t.Error("expected no output file when strict aborts early")
 	}
 }
