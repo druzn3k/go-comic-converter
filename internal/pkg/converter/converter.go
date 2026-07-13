@@ -22,6 +22,9 @@ import (
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/utils"
 )
 
+// hexColorRe validates hexadecimal color codes (RGB format).
+var hexColorRe = regexp.MustCompile("^[0-9A-F]{3}$")
+
 type Converter struct {
 	Options *Options
 	Cmd     *flag.FlagSet
@@ -34,7 +37,7 @@ type Converter struct {
 // New Create a new parser
 func New() *Converter {
 	o := NewOptions()
-	cmd := flag.NewFlagSet("go-comic-converter", flag.ExitOnError)
+	cmd := flag.NewFlagSet("go-comic-converter", flag.ContinueOnError)
 	conv := &Converter{
 		Options: o,
 		Cmd:     cmd,
@@ -198,10 +201,10 @@ func (c *Converter) Usage(isString bool, f *flag.Flag) string {
 	return b.String()
 }
 
-// Taken from flag package as it is private and needed for usage.
-//
-// isZeroValue determines whether the string represents the zero
-// value for a flag.
+// isZeroValue is copied from Go's stdlib `flag` package (go1.23)
+// because it is unexported. It determines whether the string represents
+// the zero value for a flag's Value type, needed for custom Usage output.
+// Adapted from: https://github.com/golang/go/blob/go1.23.0/src/flag/flag.go
 func (c *Converter) isZeroValue(f *flag.Flag, value string) (ok bool, err error) {
 	// Build a zero value of the flag's Value type, and see if the
 	// result of calling its String method equals the value passed in.
@@ -370,7 +373,7 @@ func (c *Converter) Validate() error {
 	}
 
 	// Color
-	colorRegex := regexp.MustCompile("^[0-9A-F]{3}$")
+	colorRegex := hexColorRe
 	if !colorRegex.MatchString(c.Options.Image.View.Color.Foreground) {
 		return errors.New("foreground color must have color format in hexadecimal: [0-9A-F]{3}")
 	}

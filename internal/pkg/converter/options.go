@@ -2,7 +2,9 @@
 package converter
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -101,7 +103,10 @@ func (o *Options) String() string {
 
 // FileName Config file: ~/.go-comic-converter.yaml
 func (o *Options) FileName() string {
-	home, _ := os.UserHomeDir()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ".go-comic-converter.yaml"
+	}
 	return filepath.Join(home, ".go-comic-converter.yaml")
 }
 
@@ -115,7 +120,7 @@ func (o *Options) LoadConfig() error {
 		_ = f.Close()
 	}(f)
 	err = yaml.NewDecoder(f).Decode(o)
-	if err != nil && err.Error() != "EOF" {
+	if err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
 
