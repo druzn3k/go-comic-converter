@@ -219,6 +219,14 @@ func generate(ctx context.Context, cmd *converter.Converter) {
 			cmd.Fatal(fmt.Errorf("unsupported output format: %s", format))
 		}
 
+		// Use the format's correct extension instead of .epub
+		ext := filepath.Ext(cmd.Options.Output)
+		if ext != "" {
+			cmd.Options.Output = cmd.Options.Output[:len(cmd.Options.Output)-len(ext)] + writer.Extension()
+		} else {
+			cmd.Options.Output = cmd.Options.Output + writer.Extension()
+		}
+
 		paths, err := writer.Write(ctx, parts, cmd.Options.EPUBOptions)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
