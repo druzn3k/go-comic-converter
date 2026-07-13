@@ -2,6 +2,7 @@
 package epubimageprocessor
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -13,7 +14,6 @@ import (
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimagefilters"
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubprogress"
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubzip"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/utils"
 	"github.com/celogeek/go-comic-converter/v3/pkg/epuboptions"
 )
 
@@ -52,7 +52,7 @@ func (e ePUBImageProcessor) Load() (images []epubimage.EPUBImage, err error) {
 		return images, nil
 	}
 
-	imageOutput := make(chan epubimage.EPUBImage)
+	imageOutput := make(chan epubimage.EPUBImage, e.WorkersRatio(50))
 
 	// processing
 	bar := epubprogress.New(epubprogress.Options{
@@ -64,6 +64,7 @@ func (e ePUBImageProcessor) Load() (images []epubimage.EPUBImage, err error) {
 		TotalJob:    2,
 	})
 	wg := &sync.WaitGroup{}
+	errc := make(chan error, 1)
 
 	imgStorage, err := epubzip.NewStorageImageWriter(e.ImgStorage(), e.Image.Format)
 	if err != nil {
@@ -79,6 +80,14 @@ func (e ePUBImageProcessor) Load() (images []epubimage.EPUBImage, err error) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					select {
+					case errc <- fmt.Errorf("worker panic: %v", r):
+					default:
+					}
+				}
+			}()
 
 			for input := range imageInput {
 				img := e.transformImage(input, 0, e.Image.Manga)
@@ -86,9 +95,12 @@ func (e ePUBImageProcessor) Load() (images []epubimage.EPUBImage, err error) {
 				// do not keep double page if requested
 				if !(img.DoublePage && input.Id > 0 &&
 					e.EPUBOptions.Image.AutoSplitDoublePage && !e.EPUBOptions.Image.KeepDoublePageIfSplit) {
-					if err = imgStorage.Add(img.EPUBImgPath(), img.Raw, e.Image.Quality); err != nil {
-						_ = bar.Close()
-						utils.Fatalf("error with %s: %s", input.Name, err)
+					if stErr := imgStorage.Add(img.EPUBImgPath(), img.Raw, e.Image.Quality); stErr != nil {
+						select {
+						case errc <- fmt.Errorf("error with %s: %w", input.Name, stErr):
+						default:
+						}
+						return
 					}
 					// do not keep raw image except for cover
 					if img.Id > 0 {
@@ -106,9 +118,12 @@ func (e ePUBImageProcessor) Load() (images []epubimage.EPUBImage, err error) {
 
 				for i, b := range []bool{e.Image.Manga, !e.Image.Manga} {
 					img = e.transformImage(input, i+1, b)
-					if err = imgStorage.Add(img.EPUBImgPath(), img.Raw, e.Image.Quality); err != nil {
-						_ = bar.Close()
-						utils.Fatalf("error with %s: %s", input.Name, err)
+					if stErr := imgStorage.Add(img.EPUBImgPath(), img.Raw, e.Image.Quality); stErr != nil {
+						select {
+						case errc <- fmt.Errorf("error with %s: %w", input.Name, stErr):
+						default:
+						}
+						return
 					}
 					img.Raw = nil
 					imageOutput <- img
@@ -123,6 +138,19 @@ func (e ePUBImageProcessor) Load() (images []epubimage.EPUBImage, err error) {
 		close(imageOutput)
 	}()
 
+	// Check for early errors
+	select {
+	case loadErr := <-errc:
+		// Drain remaining input to unblock producers
+		go func() {
+			for range imageInput {
+			}
+		}()
+		_ = bar.Close()
+		return nil, loadErr
+	default:
+	}
+
 	for img := range imageOutput {
 		if img.Part == 0 {
 			_ = bar.Add(1)
@@ -132,6 +160,15 @@ func (e ePUBImageProcessor) Load() (images []epubimage.EPUBImage, err error) {
 		}
 		images = append(images, img)
 	}
+
+	// Check for errors after processing
+	select {
+	case loadErr := <-errc:
+		_ = bar.Close()
+		return nil, loadErr
+	default:
+	}
+
 	_ = bar.Close()
 
 	if len(images) == 0 {

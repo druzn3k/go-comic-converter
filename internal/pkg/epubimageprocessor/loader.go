@@ -32,6 +32,37 @@ import (
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/utils"
 )
 
+const maxImageDim = 20000 // max pixels in any dimension for safety
+
+// decodeBounded decodes an image but rejects dimensions exceeding maxDim
+// to prevent decompression bomb attacks.
+func decodeBounded(r io.Reader, maxDim int) (image.Image, string, error) {
+	// First check dimensions without full decode
+	buf, err := io.ReadAll(r)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to read image data: %w", err)
+	}
+	if len(buf) == 0 {
+		return nil, "", fmt.Errorf("empty image data")
+	}
+
+	cfg, format, err := image.DecodeConfig(bytes.NewReader(buf))
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to decode image config: %w", err)
+	}
+
+	if cfg.Width > maxDim || cfg.Height > maxDim {
+		return nil, "", fmt.Errorf("image too large: %dx%d (max %d)", cfg.Width, cfg.Height, maxDim)
+	}
+
+	// Re-decode now that we know it's safe
+	img, _, err := image.Decode(bytes.NewReader(buf))
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to decode image: %w", err)
+	}
+	return img, format, nil
+}
+
 type task struct {
 	Id    int
 	Image image.Image
@@ -156,7 +187,7 @@ func (e ePUBImageProcessor) loadDir() (totalImages int, output chan task, err er
 					var f *os.File
 					f, err = os.Open(job.Path)
 					if err == nil {
-						img, _, err = image.Decode(f)
+						img, _, err = decodeBounded(f, maxImageDim)
 						_ = f.Close()
 					}
 				}
@@ -248,7 +279,7 @@ func (e ePUBImageProcessor) loadCbz() (totalImages int, output chan task, err er
 					var f io.ReadCloser
 					f, err = job.F.Open()
 					if err == nil {
-						img, _, err = image.Decode(f)
+						img, _, err = decodeBounded(f, maxImageDim)
 					}
 					_ = f.Close()
 				}
@@ -314,29 +345,41 @@ func (e ePUBImageProcessor) loadCbr() (totalImages int, output chan task, err er
 	}
 
 	jobs := make(chan job)
+	feederErr := make(chan error, 1)
 	go func() {
 		defer close(jobs)
+		defer func() {
+			if r := recover(); r != nil {
+				select {
+				case feederErr <- fmt.Errorf("feeder panic: %v", r):
+				default:
+				}
+			}
+		}()
 		if isSolid && !e.Dry {
 			r, rerr := rardecode.OpenReader(e.Input)
 			if rerr != nil {
-				utils.Fatalf("\nerror processing image %s: %s\n", e.Input, rerr)
+				feederErr <- fmt.Errorf("error processing %s: %w", e.Input, rerr)
+				return
 			}
 			defer func(r *rardecode.ReadCloser) {
 				_ = r.Close()
 			}(r)
 			for {
-				f, rerr := r.Next()
-				if rerr != nil {
-					if rerr == io.EOF {
+				f, rrerr := r.Next()
+				if rrerr != nil {
+					if rrerr == io.EOF {
 						break
 					}
-					utils.Fatalf("\nerror processing image %s: %s\n", f.Name, rerr)
+					feederErr <- fmt.Errorf("error reading archive: %w", rrerr)
+					return
 				}
 				if i, ok := indexedNames[f.Name]; ok {
 					var b bytes.Buffer
-					_, rerr = io.Copy(&b, r)
-					if rerr != nil {
-						utils.Fatalf("\nerror processing image %s: %s\n", f.Name, rerr)
+					_, rrerr = io.Copy(&b, r)
+					if rrerr != nil {
+						feederErr <- fmt.Errorf("error reading %s: %w", f.Name, rrerr)
+						return
 					}
 					jobs <- job{i, f.Name, func() (io.ReadCloser, error) {
 						return io.NopCloser(bytes.NewReader(b.Bytes())), nil
@@ -355,18 +398,43 @@ func (e ePUBImageProcessor) loadCbr() (totalImages int, output chan task, err er
 	// send file to the queue
 	output = make(chan task, e.Workers)
 	wg := &sync.WaitGroup{}
+
+	// Check if feeder had an immediate error
+	select {
+	case fErr := <-feederErr:
+		return 0, nil, fErr
+	default:
+	}
+
 	for range e.WorkersRatio(50) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					select {
+					case feederErr <- fmt.Errorf("worker panic: %v", r):
+					default:
+					}
+				}
+			}()
+
 			for job := range jobs {
+				// Check if feeder had an error
+				select {
+				case fErr := <-feederErr:
+					feederErr <- fErr // put it back for the caller
+					return
+				default:
+				}
+
 				var img image.Image
 				var err error
 				if !e.Dry {
 					var f io.ReadCloser
 					f, err = job.Open()
 					if err == nil {
-						img, _, err = image.Decode(f)
+						img, _, err = decodeBounded(f, maxImageDim)
 					}
 					_ = f.Close()
 				}
@@ -389,6 +457,14 @@ func (e ePUBImageProcessor) loadCbr() (totalImages int, output chan task, err er
 		wg.Wait()
 		close(output)
 	}()
+
+	// Check for feeder errors after workers drain
+	select {
+	case fErr := <-feederErr:
+		return 0, nil, fErr
+	default:
+	}
+
 	return
 }
 
