@@ -20,6 +20,7 @@ type EPUBOptions struct {
 	DryVerbose bool `yaml:"-" json:"dry_verbose"`
 	Quiet      bool `yaml:"-" json:"-"`
 	Json       bool `yaml:"-" json:"-"`
+	Strict     bool `yaml:"-" json:"strict"`
 	Workers    int  `yaml:"-" json:"workers"`
 }
 

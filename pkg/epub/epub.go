@@ -3,6 +3,7 @@ package epub
 
 import (
 	"archive/zip"
+	"errors"
 	"fmt"
 	"math"
 	"path/filepath"
@@ -24,6 +25,10 @@ import (
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/utils"
 	"github.com/celogeek/go-comic-converter/v3/pkg/epuboptions"
 )
+
+// ErrImageCorrupted is returned by Write() when some images had errors
+// and could not be fully processed. The EPUB is still written with placeholders.
+var ErrImageCorrupted = errors.New("one or more images are corrupted")
 
 type EPUB interface {
 	Write() error
@@ -263,6 +268,16 @@ func (e epub) getParts() (parts []epubPart, imgStorage epubzip.StorageImageReade
 		}
 		return images[i].Id < images[j].Id
 	})
+
+	// Check for corrupted images in strict mode
+	if e.Strict {
+		for _, img := range images {
+			if img.Error != nil {
+				err = fmt.Errorf("strict mode: %s: %w", filepath.Join(img.Path, img.Name), img.Error)
+				return
+			}
+		}
+	}
 
 	parts = make([]epubPart, 0)
 	cover := images[0]
@@ -523,9 +538,6 @@ func (e epub) Write() error {
 		_ = bar.Add(1)
 	}
 	_ = bar.Close()
-	if !e.Json {
-		utils.Println()
-	}
 
 	// display corrupted images
 	hasError := false
@@ -541,9 +553,13 @@ func (e epub) Write() error {
 			}
 		}
 	}
-	if hasError {
+
+	if !e.Json {
 		utils.Println()
 	}
 
+	if hasError {
+		return ErrImageCorrupted
+	}
 	return nil
 }

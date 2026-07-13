@@ -141,6 +141,10 @@ func (e ePUBImageProcessor) loadDir() (totalImages int, output chan task, err er
 		if err != nil {
 			return err
 		}
+		// Skip symlinks to prevent directory traversal outside input
+		if d.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
 		if !d.IsDir() && e.isSupportedImage(path) {
 			images = append(images, path)
 		}

@@ -162,6 +162,7 @@ func (c *Converter) InitParse() {
 	c.AddBoolParam(&c.Options.DryVerbose, "dry-verbose", false, "Display also sorted files after the TOC")
 	c.AddBoolParam(&c.Options.Quiet, "quiet", false, "Disable progress bar")
 	c.AddBoolParam(&c.Options.Json, "json", false, "Output progression and information in Json format")
+	c.AddBoolParam(&c.Options.Strict, "strict", false, "Abort on first corrupted image instead of continuing with a placeholder")
 	c.AddBoolParam(&c.Options.Version, "version", false, "Show current and available version")
 	c.AddBoolParam(&c.Options.Help, "help", false, "Show this help message")
 }
@@ -385,6 +386,11 @@ func (c *Converter) Validate() error {
 	// Format
 	if !slices.Contains([]string{"jpeg", "png", "copy"}, c.Options.Image.Format) {
 		return errors.New("format should be jpeg, png or copy")
+	}
+
+	// Passthrough mode does not support PDF input (only for files, not directories)
+	if c.Options.Image.Format == "copy" && !fi.IsDir() && strings.HasSuffix(strings.ToLower(c.Options.Input), ".pdf") {
+		return errors.New("format 'copy' does not support PDF input; use 'jpeg' or 'png' instead")
 	}
 
 	// Aspect Ratio

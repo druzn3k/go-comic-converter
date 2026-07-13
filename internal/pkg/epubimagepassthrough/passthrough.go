@@ -67,11 +67,13 @@ func (e ePUBImagePassthrough) loadDir() (images []epubimage.EPUBImage, err error
 		if err != nil {
 			return err
 		}
-
+		// Skip symlinks to prevent directory traversal outside input
+		if d.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
 		if !d.IsDir() && e.isSupportedImage(path) {
 			imagesPath = append(imagesPath, path)
 		}
-
 		return nil
 	})
 

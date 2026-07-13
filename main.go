@@ -9,6 +9,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
 	"runtime/debug"
@@ -124,7 +125,15 @@ func generate(cmd *converter.Converter) {
 	}
 
 	if err := epub.New(cmd.Options.EPUBOptions).Write(); err != nil {
-		utils.Fatalf("Error: %v\n", err)
+		if errors.Is(err, epub.ErrImageCorrupted) {
+			// EPUB was still written with placeholders, print stats
+			if !cmd.Options.Dry {
+				cmd.Stats()
+			}
+			utils.Fatalf("Error: %v\n", err)
+		} else {
+			utils.Fatalf("Error: %v\n", err)
+		}
 	}
 	if !cmd.Options.Dry {
 		cmd.Stats()

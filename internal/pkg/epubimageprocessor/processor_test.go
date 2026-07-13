@@ -99,3 +99,51 @@ func TestLoadDryMode(t *testing.T) {
 		t.Errorf("expected test.jpg, got %s", images[0].Name)
 	}
 }
+
+func TestLoadDirSkipsSymlinks(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create a real image file
+	data := createTestJPEG(t, 10, 10)
+	realImg := filepath.Join(dir, "real.jpg")
+	if err := os.WriteFile(realImg, data, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a symlink to it
+	symImg := filepath.Join(dir, "link.jpg")
+	if err := os.Symlink(realImg, symImg); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a symlink to something outside the dir
+	outsideSym := filepath.Join(dir, "outside.jpg")
+	if err := os.Symlink("/etc/hostname", outsideSym); err != nil {
+		t.Fatal(err)
+	}
+
+	opts := epuboptions.EPUBOptions{
+		Input: dir,
+		Image: epuboptions.Image{
+			Format: "jpeg",
+		},
+		Dry: true,
+	}
+
+	p := New(opts)
+	images, err := p.Load()
+	if err != nil {
+		t.Fatalf("Load() should succeed: %v", err)
+	}
+
+	// Should only have 1 real image, not the 2 symlinks
+	if len(images) != 1 {
+		t.Errorf("expected 1 real image (symlinks excluded), got %d", len(images))
+		for _, img := range images {
+			t.Logf("  image: %s", img.Name)
+		}
+	}
+	if images[0].Name != "real.jpg" {
+		t.Errorf("expected real.jpg, got %s", images[0].Name)
+	}
+}
