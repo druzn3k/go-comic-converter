@@ -2,6 +2,7 @@
 package epubimageprocessor
 
 import (
+	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimageloader"
 	"context"
 	"fmt"
 	"image"
@@ -186,7 +187,7 @@ func (e ePUBImageProcessor) Load(ctx context.Context) (images []epubimage.EPUBIm
 	_ = bar.Close()
 
 	if len(images) == 0 {
-		return nil, errNoImagesFound
+		return nil, epubimageloader.ErrNoImagesFound
 	}
 
 	return images, nil
@@ -225,7 +226,7 @@ func (e ePUBImageProcessor) createImage(src image.Image, r image.Rectangle) draw
 
 // transform image into 1 or 3 images
 // only doublepage with autosplit has 3 versions
-func (e ePUBImageProcessor) transformImage(input task, part int, right bool) epubimage.EPUBImage {
+func (e ePUBImageProcessor) transformImage(input epubimageloader.Task, part int, right bool) epubimage.EPUBImage {
 	g := gift.New()
 	src := input.Image
 	srcBounds := src.Bounds()

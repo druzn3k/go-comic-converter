@@ -1,10 +1,10 @@
 package epubimagepassthrough
 
 import (
+	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimageloader"
 	"context"
 	"archive/zip"
 	"bytes"
-	"errors"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -54,7 +54,6 @@ func (e ePUBImagePassthrough) CoverTitleData(o epubimageprocessor.CoverTitleData
 	return epubimageprocessor.New(e.EPUBOptions).CoverTitleData(o)
 }
 
-var errNoImagesFound = errors.New("no images found")
 
 func New(o epuboptions.EPUBOptions) epubimageprocessor.EPUBImageProcessor {
 	return ePUBImagePassthrough{o}
@@ -72,7 +71,7 @@ func (e ePUBImagePassthrough) loadDir(ctx context.Context) (images []epubimage.E
 		if d.Type()&os.ModeSymlink != 0 {
 			return nil
 		}
-		if !d.IsDir() && e.isSupportedImage(path) {
+		if !d.IsDir() && epubimageloader.IsSupportedImage(path, false) {
 			imagesPath = append(imagesPath, path)
 		}
 		return nil
@@ -83,7 +82,7 @@ func (e ePUBImagePassthrough) loadDir(ctx context.Context) (images []epubimage.E
 	}
 
 	if len(imagesPath) == 0 {
-		err = errNoImagesFound
+		err = epubimageloader.ErrNoImagesFound
 		return
 	}
 
@@ -133,7 +132,7 @@ func (e ePUBImagePassthrough) loadDir(ctx context.Context) (images []epubimage.E
 	}
 
 	if len(images) == 0 {
-		err = errNoImagesFound
+		err = epubimageloader.ErrNoImagesFound
 	}
 
 	return
@@ -158,7 +157,7 @@ func (e ePUBImagePassthrough) loadCbz(ctx context.Context) (images []epubimage.E
 	}
 
 	if len(imagesZip) == 0 {
-		err = errNoImagesFound
+		err = epubimageloader.ErrNoImagesFound
 		return
 	}
 
@@ -223,7 +222,7 @@ func (e ePUBImagePassthrough) loadCbz(ctx context.Context) (images []epubimage.E
 	}
 
 	if len(images) == 0 {
-		err = errNoImagesFound
+		err = epubimageloader.ErrNoImagesFound
 	}
 
 	return
@@ -249,7 +248,7 @@ func (e ePUBImagePassthrough) loadCbr(ctx context.Context) (images []epubimage.E
 	}
 
 	if len(names) == 0 {
-		err = errNoImagesFound
+		err = epubimageloader.ErrNoImagesFound
 		return
 	}
 
@@ -348,7 +347,7 @@ func (e ePUBImagePassthrough) loadCbr(ctx context.Context) (images []epubimage.E
 	}
 
 	if len(images) == 0 {
-		err = errNoImagesFound
+		err = epubimageloader.ErrNoImagesFound
 	}
 
 	return

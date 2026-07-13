@@ -1,6 +1,7 @@
 package epubimageprocessor
 
 import (
+	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimageloader"
 	"context"
 	"bytes"
 	"image"
@@ -47,7 +48,7 @@ func TestDecodeBounded(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			data := createTestJPEG(t, tt.width, tt.height)
-			_, _, err := decodeBounded(bytes.NewReader(data), tt.maxDim)
+			_, _, err := epubimageloader.DecodeBounded(bytes.NewReader(data), tt.maxDim)
 			if tt.wantErr && err == nil {
 				t.Error("expected error but got none")
 			}
@@ -59,14 +60,14 @@ func TestDecodeBounded(t *testing.T) {
 }
 
 func TestDecodeBoundedTruncated(t *testing.T) {
-	_, _, err := decodeBounded(bytes.NewReader([]byte{0xff, 0xd8, 0xff, 0xe0}), 10000)
+	_, _, err := epubimageloader.DecodeBounded(bytes.NewReader([]byte{0xff, 0xd8, 0xff, 0xe0}), 10000)
 	if err == nil {
 		t.Error("expected error for truncated JPEG")
 	}
 }
 
 func TestDecodeBoundedEmpty(t *testing.T) {
-	_, _, err := decodeBounded(bytes.NewReader([]byte{}), 10000)
+	_, _, err := epubimageloader.DecodeBounded(bytes.NewReader([]byte{}), 10000)
 	if err == nil {
 		t.Error("expected error for empty input")
 	}

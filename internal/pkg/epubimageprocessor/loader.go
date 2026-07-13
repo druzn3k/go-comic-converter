@@ -1,10 +1,10 @@
 package epubimageprocessor
 
 import (
+	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimageloader"
 	"context"
 	"bytes"
 	"archive/zip"
-	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -33,46 +33,11 @@ import (
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/utils"
 )
 
-const maxImageDim = 20000 // max pixels in any dimension for safety
 
 // decodeBounded decodes an image but rejects dimensions exceeding maxDim
 // to prevent decompression bomb attacks.
-func decodeBounded(r io.Reader, maxDim int) (image.Image, string, error) {
-	// First check dimensions without full decode
-	buf, err := io.ReadAll(r)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to read image data: %w", err)
-	}
-	if len(buf) == 0 {
-		return nil, "", fmt.Errorf("empty image data")
-	}
 
-	cfg, format, err := image.DecodeConfig(bytes.NewReader(buf))
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to decode image config: %w", err)
-	}
 
-	if cfg.Width > maxDim || cfg.Height > maxDim {
-		return nil, "", fmt.Errorf("image too large: %dx%d (max %d)", cfg.Width, cfg.Height, maxDim)
-	}
-
-	// Re-decode now that we know it's safe
-	img, _, err := image.Decode(bytes.NewReader(buf))
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to decode image: %w", err)
-	}
-	return img, format, nil
-}
-
-type task struct {
-	Id    int
-	Image image.Image
-	Path  string
-	Name  string
-	Error error
-}
-
-var errNoImagesFound = errors.New("no images found")
 
 // only accept jpg, png and webp as source file
 func (e ePUBImageProcessor) isSupportedImage(path string) bool {
@@ -86,7 +51,7 @@ func (e ePUBImageProcessor) isSupportedImage(path string) bool {
 }
 
 // load images from input
-func (e ePUBImageProcessor) load(ctx context.Context) (totalImages int, output chan task, err error) {
+func (e ePUBImageProcessor) load(ctx context.Context) (totalImages int, output chan epubimageloader.Task, err error) {
 	fi, err := os.Stat(e.Input)
 	if err != nil {
 		return
@@ -134,7 +99,7 @@ func (e ePUBImageProcessor) corruptedImage(path, name string) image.Image {
 }
 
 // load a directory of images
-func (e ePUBImageProcessor) loadDir(ctx context.Context) (totalImages int, output chan task, err error) {
+func (e ePUBImageProcessor) loadDir(ctx context.Context) (totalImages int, output chan epubimageloader.Task, err error) {
 	images := make([]string, 0)
 
 	input := filepath.Clean(e.Input)
@@ -146,7 +111,7 @@ func (e ePUBImageProcessor) loadDir(ctx context.Context) (totalImages int, outpu
 		if d.Type()&os.ModeSymlink != 0 {
 			return nil
 		}
-		if !d.IsDir() && e.isSupportedImage(path) {
+		if !d.IsDir() && epubimageloader.IsSupportedImage(path, true) {
 			images = append(images, path)
 		}
 		return nil
@@ -159,7 +124,7 @@ func (e ePUBImageProcessor) loadDir(ctx context.Context) (totalImages int, outpu
 	totalImages = len(images)
 
 	if totalImages == 0 {
-		err = errNoImagesFound
+		err = epubimageloader.ErrNoImagesFound
 		return
 	}
 
@@ -179,7 +144,7 @@ func (e ePUBImageProcessor) loadDir(ctx context.Context) (totalImages int, outpu
 	}()
 
 	// read in parallel and get an image
-	output = make(chan task, e.Workers)
+	output = make(chan epubimageloader.Task, e.Workers)
 	wg := &sync.WaitGroup{}
 	for range e.WorkersRatio(50) {
 		wg.Add(1)
@@ -197,7 +162,7 @@ func (e ePUBImageProcessor) loadDir(ctx context.Context) (totalImages int, outpu
 					var f *os.File
 					f, err = os.Open(job.Path)
 					if err == nil {
-						img, _, err = decodeBounded(f, maxImageDim)
+						img, _, err = epubimageloader.DecodeBounded(f, epubimageloader.MaxImageDim)
 						_ = f.Close()
 					}
 				}
@@ -209,9 +174,9 @@ func (e ePUBImageProcessor) loadDir(ctx context.Context) (totalImages int, outpu
 					p = p[len(input)+1:]
 				}
 				if err != nil {
-					img = e.corruptedImage(p, fn)
+					img = epubimageloader.CorruptedImage(p, fn)
 				}
-				output <- task{
+				output <- epubimageloader.Task{
 					Id:    job.Id,
 					Image: img,
 					Path:  p,
@@ -232,7 +197,7 @@ func (e ePUBImageProcessor) loadDir(ctx context.Context) (totalImages int, outpu
 }
 
 // load a zip file that include images
-func (e ePUBImageProcessor) loadCbz(ctx context.Context) (totalImages int, output chan task, err error) {
+func (e ePUBImageProcessor) loadCbz(ctx context.Context) (totalImages int, output chan epubimageloader.Task, err error) {
 	r, err := zip.OpenReader(e.Input)
 	if err != nil {
 		return
@@ -249,7 +214,7 @@ func (e ePUBImageProcessor) loadCbz(ctx context.Context) (totalImages int, outpu
 
 	if totalImages == 0 {
 		_ = r.Close()
-		err = errNoImagesFound
+		err = epubimageloader.ErrNoImagesFound
 		return
 	}
 
@@ -276,7 +241,7 @@ func (e ePUBImageProcessor) loadCbz(ctx context.Context) (totalImages int, outpu
 		}
 	}()
 
-	output = make(chan task, e.Workers)
+	output = make(chan epubimageloader.Task, e.Workers)
 	wg := &sync.WaitGroup{}
 	for range e.WorkersRatio(50) {
 		wg.Add(1)
@@ -299,16 +264,16 @@ func (e ePUBImageProcessor) loadCbz(ctx context.Context) (totalImages int, outpu
 					var f io.ReadCloser
 					f, err = job.F.Open()
 					if err == nil {
-						img, _, err = decodeBounded(f, maxImageDim)
+						img, _, err = epubimageloader.DecodeBounded(f, epubimageloader.MaxImageDim)
 					}
 					_ = f.Close()
 				}
 
 				p, fn := filepath.Split(filepath.Clean(job.F.Name))
 				if err != nil {
-					img = e.corruptedImage(p, fn)
+					img = epubimageloader.CorruptedImage(p, fn)
 				}
-				output <- task{
+				output <- epubimageloader.Task{
 					Id:    job.Id,
 					Image: img,
 					Path:  p,
@@ -328,7 +293,7 @@ func (e ePUBImageProcessor) loadCbz(ctx context.Context) (totalImages int, outpu
 }
 
 // load a rar file that include images
-func (e ePUBImageProcessor) loadCbr(ctx context.Context) (totalImages int, output chan task, err error) {
+func (e ePUBImageProcessor) loadCbr(ctx context.Context) (totalImages int, output chan epubimageloader.Task, err error) {
 	var isSolid bool
 	files, err := rardecode.List(e.Input)
 	if err != nil {
@@ -347,7 +312,7 @@ func (e ePUBImageProcessor) loadCbr(ctx context.Context) (totalImages int, outpu
 
 	totalImages = len(names)
 	if totalImages == 0 {
-		err = errNoImagesFound
+		err = epubimageloader.ErrNoImagesFound
 		return
 	}
 
@@ -418,7 +383,7 @@ func (e ePUBImageProcessor) loadCbr(ctx context.Context) (totalImages int, outpu
 	}()
 
 	// send file to the queue
-	output = make(chan task, e.Workers)
+	output = make(chan epubimageloader.Task, e.Workers)
 	wg := &sync.WaitGroup{}
 
 	// Check if feeder had an immediate error
@@ -456,16 +421,16 @@ func (e ePUBImageProcessor) loadCbr(ctx context.Context) (totalImages int, outpu
 					var f io.ReadCloser
 					f, err = job.Open()
 					if err == nil {
-						img, _, err = decodeBounded(f, maxImageDim)
+						img, _, err = epubimageloader.DecodeBounded(f, epubimageloader.MaxImageDim)
 					}
 					_ = f.Close()
 				}
 
 				p, fn := filepath.Split(filepath.Clean(job.Name))
 				if err != nil {
-					img = e.corruptedImage(p, fn)
+					img = epubimageloader.CorruptedImage(p, fn)
 				}
-				output <- task{
+				output <- epubimageloader.Task{
 					Id:    job.Id,
 					Image: img,
 					Path:  p,
@@ -491,7 +456,7 @@ func (e ePUBImageProcessor) loadCbr(ctx context.Context) (totalImages int, outpu
 }
 
 // extract image from a pdf
-func (e ePUBImageProcessor) loadPdf(ctx context.Context) (totalImages int, output chan task, err error) {
+func (e ePUBImageProcessor) loadPdf(ctx context.Context) (totalImages int, output chan epubimageloader.Task, err error) {
 	pdf := pdfread.Load(e.Input)
 	if pdf == nil {
 		err = fmt.Errorf("can't read pdf")
@@ -500,7 +465,7 @@ func (e ePUBImageProcessor) loadPdf(ctx context.Context) (totalImages int, outpu
 
 	totalImages = len(pdf.Pages())
 	pageFmt := "page " + utils.FormatNumberOfDigits(totalImages)
-	output = make(chan task)
+	output = make(chan epubimageloader.Task)
 	go func() {
 		defer close(output)
 		defer pdf.Close()
@@ -513,9 +478,9 @@ func (e ePUBImageProcessor) loadPdf(ctx context.Context) (totalImages int, outpu
 
 			name := fmt.Sprintf(pageFmt, i+1)
 			if err != nil {
-				img = e.corruptedImage("", name)
+				img = epubimageloader.CorruptedImage("", name)
 			}
-			output <- task{
+			output <- epubimageloader.Task{
 				Id:    i,
 				Image: img,
 				Path:  "",
