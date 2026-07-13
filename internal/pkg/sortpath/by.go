@@ -14,6 +14,13 @@ The module support 3 mode:
   - mode=1 alphanumeric for path and alpha for file
   - mode=2 alphanumeric for path and file
 
+Known limitations:
+  - Negative numbers (e.g. "-1") are not handled as numeric parts.
+  - Float64 precision loss may occur for integer values > 2^53.
+  - Case-insensitive comparison via strings.ToLower may produce
+    unstable ordering for certain Unicode input.
+  - Leading-dot numeric filenames (e.g. ".5") ARE supported.
+
 Example:
 
 	files := []string{

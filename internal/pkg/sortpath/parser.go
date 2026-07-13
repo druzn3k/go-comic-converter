@@ -8,6 +8,8 @@ import (
 )
 
 // Strings follow with numbers like: s1, s1.2, s2-3, ...
+// Does not match leading-dot numbers (e.g. ".5") — handled as a
+// fallback in parsePart. Also does not handle negative numbers.
 var splitPathRegex = regexp.MustCompile(`^(.*?)(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?$`)
 
 type part struct {
@@ -28,9 +30,16 @@ func (a part) compare(b part) float64 {
 		return float64(strings.Compare(a.name, b.name))
 	}
 }
-
 // separate from the string the number part.
 func parsePart(p string) part {
+	// Handle leading-dot filenames like ".5" — the regex matches them
+	// incorrectly as name=".", number=5 instead of name="", number=0.5.
+	if strings.HasPrefix(p, ".") {
+		n, err := strconv.ParseFloat(p, 64)
+		if err == nil {
+			return part{p, "", n}
+		}
+	}
 	r := splitPathRegex.FindStringSubmatch(p)
 	if len(r) == 0 {
 		return part{p, p, 0}
