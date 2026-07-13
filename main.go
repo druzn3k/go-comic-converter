@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/converter"
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/utils"
+	"github.com/celogeek/go-comic-converter/v3/pkg/comic/output"
 	"github.com/celogeek/go-comic-converter/v3/pkg/epub"
 )
 
@@ -129,20 +131,54 @@ func generate(ctx context.Context, cmd *converter.Converter) {
 		utils.Println(cmd.Options)
 	}
 
-	if err := epub.New(cmd.Options.EPUBOptions).Write(ctx); err != nil {
-		if errors.Is(err, context.Canceled) {
-			utils.Println("\nCancelled")
-			os.Exit(1)
-		}
-		if errors.Is(err, epub.ErrImageCorrupted) {
-			if !cmd.Options.Dry {
-				cmd.Stats()
-			}
-			utils.Fatalf("Error: %v\n", err)
-		} else {
-			utils.Fatalf("Error: %v\n", err)
+	// Determine output format:
+	// 1. Explicit -output-format flag
+	// 2. Profile PreferredFormat
+	// 3. Default to "epub"
+	format := cmd.Options.OutputFormat
+	if format == "" || format == "epub" {
+		if profile := cmd.Options.GetProfile(); profile != nil && profile.PreferredFormat != "" {
+			format = profile.PreferredFormat
 		}
 	}
+	if format == "" {
+		format = "epub"
+	}
+
+	if format == "epub" {
+		// Use existing EPUB generation path
+		if err := epub.New(cmd.Options.EPUBOptions).Write(ctx); err != nil {
+			if errors.Is(err, context.Canceled) {
+				utils.Println("\nCancelled")
+				os.Exit(1)
+			}
+			if errors.Is(err, epub.ErrImageCorrupted) {
+				if !cmd.Options.Dry {
+					cmd.Stats()
+				}
+				utils.Fatalf("Error: %v\n", err)
+			} else {
+				utils.Fatalf("Error: %v\n", err)
+			}
+		}
+	} else {
+		// Use OutputWriter registry for other formats
+		writer := output.Get(format)
+		if writer == nil {
+			cmd.Fatal(fmt.Errorf("unsupported output format: %s", format))
+		}
+
+		paths, err := writer.Write(ctx, nil, cmd.Options.EPUBOptions)
+		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				utils.Println("\nCancelled")
+				os.Exit(1)
+			}
+			utils.Fatalf("Error: %v\n", err)
+		}
+		_ = paths
+	}
+
 	if !cmd.Options.Dry {
 		cmd.Stats()
 	}

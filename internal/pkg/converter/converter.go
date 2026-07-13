@@ -158,6 +158,7 @@ func (c *Converter) InitParse() {
 
 	c.AddSection("Other")
 	c.AddIntParam(&c.Options.Workers, "workers", runtime.NumCPU(), "Number of workers")
+	c.AddStringParam(&c.Options.OutputFormat, "output-format", "epub", "Output format: epub, cbz, kepub, html (default epub)")
 	c.AddBoolParam(&c.Options.Dry, "dry", false, "Dry run to show all options")
 	c.AddBoolParam(&c.Options.DryVerbose, "dry-verbose", false, "Display also sorted files after the TOC")
 	c.AddBoolParam(&c.Options.Quiet, "quiet", false, "Disable progress bar")

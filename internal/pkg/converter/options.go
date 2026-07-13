@@ -35,8 +35,9 @@ type Options struct {
 	GoodQuality  bool `yaml:"-" json:"-"`
 
 	// Other
-	Version bool `yaml:"-" json:"-"`
-	Help    bool `yaml:"-" json:"-"`
+	Version      bool   `yaml:"-" json:"-"`
+	Help         bool   `yaml:"-" json:"-"`
+	OutputFormat string `yaml:"-" json:"-"`
 
 	// Internal
 	profiles Profiles
