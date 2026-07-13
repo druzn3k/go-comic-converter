@@ -19,6 +19,20 @@ func colorIsBlank(c color.Color) bool {
 	g := color.GrayModel.Convert(c).(color.Gray)
 	return g.Y >= 0xe0
 }
+// isBlankPixel checks if a pixel is blank (light enough) using direct
+// pixel access for performance on common image types.
+func isBlankPixel(img image.Image, x, y int) bool {
+	switch i := img.(type) {
+	case *image.Gray:
+		return i.Pix[i.PixOffset(x, y)] >= 0xe0
+	case *image.RGBA:
+		r, g, b, _ := i.At(x, y).RGBA()
+		return r >= 0xe000 && g >= 0xe000 && b >= 0xe000
+	default:
+		return colorIsBlank(img.At(x, y))
+	}
+}
+
 
 // lookup for margin (blank) around the image
 type cutRatioOptions struct {
@@ -32,7 +46,7 @@ LEFT:
 	for x := imgArea.Min.X; x < imgArea.Max.X; x++ {
 		allowNonBlank := imgArea.Dy() * cutRatio.Left / 100
 		for y := imgArea.Min.Y; y < imgArea.Max.Y; y++ {
-			if !colorIsBlank(img.At(x, y)) {
+			if !isBlankPixel(img, x, y) {
 				allowNonBlank--
 				if allowNonBlank <= 0 {
 					break LEFT
@@ -46,7 +60,7 @@ UP:
 	for y := imgArea.Min.Y; y < imgArea.Max.Y; y++ {
 		allowNonBlank := imgArea.Dx() * cutRatio.Up / 100
 		for x := imgArea.Min.X; x < imgArea.Max.X; x++ {
-			if !colorIsBlank(img.At(x, y)) {
+			if !isBlankPixel(img, x, y) {
 				allowNonBlank--
 				if allowNonBlank <= 0 {
 					break UP
@@ -60,7 +74,7 @@ RIGHT:
 	for x := imgArea.Max.X - 1; x >= imgArea.Min.X; x-- {
 		allowNonBlank := imgArea.Dy() * cutRatio.Right / 100
 		for y := imgArea.Min.Y; y < imgArea.Max.Y; y++ {
-			if !colorIsBlank(img.At(x, y)) {
+			if !isBlankPixel(img, x, y) {
 				allowNonBlank--
 				if allowNonBlank <= 0 {
 					break RIGHT
@@ -74,7 +88,7 @@ BOTTOM:
 	for y := imgArea.Max.Y - 1; y >= imgArea.Min.Y; y-- {
 		allowNonBlank := imgArea.Dx() * cutRatio.Bottom / 100
 		for x := imgArea.Min.X; x < imgArea.Max.X; x++ {
-			if !colorIsBlank(img.At(x, y)) {
+			if !isBlankPixel(img, x, y) {
 				allowNonBlank--
 				if allowNonBlank <= 0 {
 					break BOTTOM

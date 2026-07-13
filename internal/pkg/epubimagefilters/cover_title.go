@@ -5,6 +5,9 @@ import (
 	"image/draw"
 
 	"github.com/disintegration/gift"
+	// NOTE: github.com/golang/freetype is archived (last commit 2017).
+	// Replace with golang.org/x/image/font/sfnt in a future refactor.
+	// sfnt.Font API differs — DrawString logic needs adaptation.
 	"github.com/golang/freetype"
 	"github.com/golang/freetype/truetype"
 	"golang.org/x/image/font"
@@ -40,14 +43,23 @@ func (p coverTitle) Draw(dst draw.Image, src image.Image, _ *gift.Options) {
 	srcWidth, srcHeight := src.Bounds().Dx(), src.Bounds().Dy()
 
 	// Calculate size of title
-	f, _ := truetype.Parse(gomonobold.TTF)
+	f, err := truetype.Parse(gomonobold.TTF)
+	if err != nil {
+		// fallback - just draw without title text
+		return
+	}
 	var fontSize, textWidth, textHeight int
-	for fontSize = p.maxFontSize; fontSize >= 12; fontSize -= 1 {
-		face := truetype.NewFace(f, &truetype.Options{Size: float64(fontSize), DPI: 72})
+	low, high := 12, p.maxFontSize
+	for low <= high {
+		mid := (low + high) / 2
+		face := truetype.NewFace(f, &truetype.Options{Size: float64(mid), DPI: 72})
 		textWidth = font.MeasureString(face, p.title).Ceil()
 		textHeight = face.Metrics().Ascent.Ceil() + face.Metrics().Descent.Ceil()
 		if textWidth+2*p.borderSize < srcWidth*p.pctWidth/100 && 3*textHeight+2*p.borderSize < srcHeight {
-			break
+			fontSize = mid
+			low = mid + 1
+		} else {
+			high = mid - 1
 		}
 	}
 

@@ -4,9 +4,11 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	"sort"
 
 	"github.com/disintegration/gift"
 )
+
 
 // AutoContrast Automatically improve contrast
 func AutoContrast() gift.Filter {
@@ -31,8 +33,13 @@ func (f autocontrast) mean(src image.Image) float32 {
 	{
 		// limit to half of the pixel
 		limit := src.Bounds().Dx() * src.Bounds().Dy() / 2
-		// loop on all color from 0 to 65536
-		for colorIdx := range 1 << 16 {
+		// iterate over sorted map keys instead of all 65536 values
+		keys := make([]int, 0, len(bucket))
+		for k := range bucket {
+			keys = append(keys, k)
+		}
+		sort.Ints(keys)
+		for _, colorIdx = range keys {
 			if limit-bucket[colorIdx] < 0 {
 				break
 			}

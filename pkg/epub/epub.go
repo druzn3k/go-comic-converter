@@ -12,7 +12,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/gofrs/uuid"
+	"github.com/gofrs/uuid/v5"
 
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimage"
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimagepassthrough"

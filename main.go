@@ -9,10 +9,9 @@ package main
 
 import (
 	"encoding/json"
+	"net/http"
 	"os"
 	"runtime/debug"
-
-	"github.com/tcnksm/go-latest"
 
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/converter"
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/utils"
@@ -48,18 +47,18 @@ func version() {
 		utils.Fatalln("failed to fetch current version")
 	}
 
-	githubTag := &latest.GithubTag{
-		Owner:      "celogeek",
-		Repository: "go-comic-converter",
+	// Fetch latest version from GitHub API
+	latestVersion := "unknown"
+	resp, err := http.Get("https://api.github.com/repos/celogeek/go-comic-converter/tags")
+	if err == nil {
+		defer resp.Body.Close()
+		if resp.StatusCode == http.StatusOK {
+			var tags []struct{ Name string `json:"name"` }
+			if err := json.NewDecoder(resp.Body).Decode(&tags); err == nil && len(tags) > 0 {
+				latestVersion = tags[0].Name
+			}
+		}
 	}
-	v, err := githubTag.Fetch()
-	if err != nil {
-		utils.Fatalln("failed to fetch the latest version")
-	}
-	if len(v.Versions) < 1 {
-		utils.Fatalln("no versions found")
-	}
-	latestVersion := v.Versions[0]
 
 	utils.Printf(`go-comic-converter
   Path             : %s
@@ -68,14 +67,13 @@ func version() {
   Available Version: %s
 
 To install the latest version:
-$ go install github.com/celogeek/go-comic-converter/v%d@%s
+$ go install github.com/celogeek/go-comic-converter/v3@%s
 `,
 		bi.Main.Path,
 		bi.Main.Sum,
 		bi.Main.Version,
-		latestVersion.Original(),
-		latestVersion.Segments()[0],
-		latestVersion.Original(),
+		latestVersion,
+		latestVersion,
 	)
 }
 

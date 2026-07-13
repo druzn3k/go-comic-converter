@@ -375,6 +375,8 @@ func (e ePUBImageProcessor) loadCbr() (totalImages int, output chan task, err er
 					return
 				}
 				if i, ok := indexedNames[f.Name]; ok {
+				// Solid RAR requires sequential reading; buffer the full entry
+				// before decode. Memory usage is entry_size + decoded_image.
 					var b bytes.Buffer
 					_, rrerr = io.Copy(&b, r)
 					if rrerr != nil {
