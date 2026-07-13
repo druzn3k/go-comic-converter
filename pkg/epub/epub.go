@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"context"
-	"math"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -24,6 +23,7 @@ import (
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubtree"
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubzip"
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/utils"
+	"github.com/celogeek/go-comic-converter/v3/pkg/comic"
 	"github.com/celogeek/go-comic-converter/v3/pkg/epuboptions"
 )
 
@@ -352,52 +352,30 @@ func (e epub) getTree(images []epubimage.EPUBImage, skipFiles bool) string {
 
 	return c.WriteString("")
 }
+// toPartAspects converts []epubPart to []comic.PartAspect,
+// extracting only the aspect ratio data needed by viewport functions.
+func toPartAspects(epubParts []epubPart) []comic.PartAspect {
+	aspects := make([]comic.PartAspect, len(epubParts))
+	for i, p := range epubParts {
+		images := make([]comic.ImageAspect, len(p.Images))
+		for j, img := range p.Images {
+			images[j] = comic.ImageAspect{OriginalAspectRatio: img.OriginalAspectRatio}
+		}
+		aspects[i] = comic.PartAspect{
+			Cover:  comic.ImageAspect{OriginalAspectRatio: p.Cover.OriginalAspectRatio},
+			Images: images,
+		}
+	}
+	return aspects
+}
+
 
 func (e epub) computeAspectRatio(epubParts []epubPart) float64 {
-	var (
-		bestAspectRatio      float64
-		bestAspectRatioCount int
-		aspectRatio          = map[float64]int{}
-	)
-
-	trunc := func(v float64) float64 {
-		return float64(math.Round(v*10000)) / 10000
-	}
-
-	for _, p := range epubParts {
-		aspectRatio[trunc(p.Cover.OriginalAspectRatio)]++
-		for _, i := range p.Images {
-			aspectRatio[trunc(i.OriginalAspectRatio)]++
-		}
-	}
-
-	for k, v := range aspectRatio {
-		if v > bestAspectRatioCount {
-			bestAspectRatio, bestAspectRatioCount = k, v
-		}
-	}
-
-	return bestAspectRatio
+	return comic.ComputeAspectRatio(toPartAspects(epubParts))
 }
 
 func (e epub) computeViewPort(epubParts []epubPart) (int, int) {
-	if e.Image.View.AspectRatio == -1 {
-		//keep device size
-		return e.Image.View.Width, e.Image.View.Height
-	}
-
-	// readjusting view port
-	bestAspectRatio := e.Image.View.AspectRatio
-	if bestAspectRatio == 0 {
-		bestAspectRatio = e.computeAspectRatio(epubParts)
-	}
-
-	viewWidth, viewHeight := int(float64(e.Image.View.Height)/bestAspectRatio), int(float64(e.Image.View.Width)*bestAspectRatio)
-	if viewWidth > e.Image.View.Width {
-		return e.Image.View.Width, viewHeight
-	} else {
-		return viewWidth, e.Image.View.Height
-	}
+	return comic.ComputeViewPort(toPartAspects(epubParts), e.Image.View)
 }
 
 func (e epub) writePart(path string, currentPart, totalParts int, part epubPart, imgStorage epubzip.StorageImageReader) error {
