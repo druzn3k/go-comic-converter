@@ -8,13 +8,11 @@ import (
 )
 
 func TestOptionsAlias(t *testing.T) {
-	// Options is a type alias for epuboptions.EPUBOptions
 	var opts Options
-	_ = opts // compiles and is usable
+	_ = opts
 }
 
 func TestOptionsAssignability(t *testing.T) {
-	// Options must be assignable from epuboptions.EPUBOptions
 	eo := epuboptions.EPUBOptions{
 		Title: "test",
 	}
@@ -34,39 +32,6 @@ func TestPartFields(t *testing.T) {
 	}
 	if len(p.Images) != 2 {
 		t.Errorf("expected 2 images, got %d", len(p.Images))
-	}
-}
-
-func TestPartMetadataFields(t *testing.T) {
-	m := PartMetadata{
-		Title:     "My Comic",
-		Author:    "Test Author",
-		Publisher: "GO Comic Converter",
-		UID:       "some-uuid",
-	}
-	if m.Title != "My Comic" {
-		t.Errorf("expected title 'My Comic', got %q", m.Title)
-	}
-	if m.Author != "Test Author" {
-		t.Errorf("expected author 'Test Author', got %q", m.Author)
-	}
-}
-
-func TestOutputPartFields(t *testing.T) {
-	op := OutputPart{
-		PartNumber: 1,
-		TotalParts: 3,
-		Part: Part{
-			Cover:  epubimage.EPUBImage{Name: "cover.jpg"},
-			Images: []epubimage.EPUBImage{{Name: "p1.jpg"}},
-		},
-		Metadata: PartMetadata{Title: "test"},
-	}
-	if op.PartNumber != 1 {
-		t.Errorf("expected part number 1, got %d", op.PartNumber)
-	}
-	if op.TotalParts != 3 {
-		t.Errorf("expected total parts 3, got %d", op.TotalParts)
 	}
 }
 
@@ -122,7 +87,6 @@ func TestRegistryConcurrentSafe(t *testing.T) {
 		}
 		close(done)
 	}()
-	// concurrent lookups (no race detector should flag this)
 	for range 100 {
 		_, _ = r.lookup("key")
 	}

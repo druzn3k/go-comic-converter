@@ -22,7 +22,7 @@ import (
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubtree"
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubzip"
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/utils"
-	"github.com/celogeek/go-comic-converter/v3/pkg/comic"
+	"github.com/celogeek/go-comic-converter/v3/pkg/comic/viewport"
 	"github.com/celogeek/go-comic-converter/v3/pkg/epuboptions"
 )
 
@@ -282,18 +282,18 @@ type kepubPart struct {
 
 // computeViewPort calculates optimal viewport dimensions.
 func (w KEPUBWriter) computeViewPort(parts []kepubPart, opts epuboptions.EPUBOptions) (int, int) {
-	aspects := make([]comic.PartAspect, len(parts))
+	aspects := make([]viewport.PartAspect, len(parts))
 	for i, p := range parts {
-		images := make([]comic.ImageAspect, len(p.Images))
+		images := make([]viewport.ImageAspect, len(p.Images))
 		for j, img := range p.Images {
-			images[j] = comic.ImageAspect{OriginalAspectRatio: img.OriginalAspectRatio}
+			images[j] = viewport.ImageAspect{OriginalAspectRatio: img.OriginalAspectRatio}
 		}
-		aspects[i] = comic.PartAspect{
-			Cover:  comic.ImageAspect{OriginalAspectRatio: p.Cover.OriginalAspectRatio},
+		aspects[i] = viewport.PartAspect{
+			Cover:  viewport.ImageAspect{OriginalAspectRatio: p.Cover.OriginalAspectRatio},
 			Images: images,
 		}
 	}
-	return comic.ComputeViewPort(aspects, opts.Image.View)
+	return viewport.ComputeViewPort(aspects, opts.Image.View)
 }
 
 func (w KEPUBWriter) writePart(
