@@ -1,0 +1,17 @@
+apiVersion: 1
+name: max-fidelity
+description: Maximum quality with minimal processing
+filters:
+  - name: auto_crop
+    params:
+      left: 1
+      up: 1
+      right: 1
+      bottom: 3
+      limit: 5
+      skip_if_limit_reached: true
+  - name: resize
+    params:
+      width: 2400
+      height: 3840
+      mode: 0

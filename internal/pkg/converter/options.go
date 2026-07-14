@@ -33,11 +33,15 @@ type Options struct {
 	BestQuality  bool `yaml:"-" json:"-"`
 	GreatQuality bool `yaml:"-" json:"-"`
 	GoodQuality  bool `yaml:"-" json:"-"`
-
 	// Other
 	Version               bool   `yaml:"-" json:"-"`
 	Help                  bool   `yaml:"-" json:"-"`
 	OutputFormat          string `yaml:"-" json:"-"`
+
+	// Recipe
+	Recipe     string `yaml:"-" json:"-"`
+	RecipeShow bool   `yaml:"-" json:"-"`
+	RecipeSave bool   `yaml:"-" json:"-"`
 
 	// Server
 	Serve             string `yaml:"-" json:"-"`

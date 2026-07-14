@@ -1,0 +1,19 @@
+apiVersion: 1
+name: manga-old-scan
+description: Optimized for old or low-quality manga scans
+filters:
+  - name: auto_crop
+    params:
+      left: 1
+      up: 1
+      right: 1
+      bottom: 3
+  - name: auto_contrast
+  - name: grayscale
+    params:
+      mode: 0
+  - name: resize
+    params:
+      width: 1200
+      height: 1920
+      mode: 0

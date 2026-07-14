@@ -171,6 +171,11 @@ func (c *Converter) InitParse() {
 	c.AddStringParam(&c.Options.Serve, "serve", "", "Start HTTP server mode (e.g., :8080)")
 	c.AddIntParam(&c.Options.MaxConcurrent, "max-concurrent", 2, "Max concurrent conversions in server mode")
 	c.AddBoolParam(&c.Options.AllowLocalPaths, "allow-local-paths", false, "Allow local file paths as input in server mode")
+
+	c.AddSection("Recipe")
+	c.AddStringParam(&c.Options.Recipe, "recipe", "", "Processing recipe: builtin name or path to YAML file")
+	c.AddBoolParam(&c.Options.RecipeShow, "recipe-show", false, "Print the effective filter chain and exit")
+	c.AddBoolParam(&c.Options.RecipeSave, "recipe-save", false, "Save current filter configuration as a recipe YAML")
 }
 
 // Usage Customize version of FlagSet.PrintDefaults
