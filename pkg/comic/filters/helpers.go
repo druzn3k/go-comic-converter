@@ -51,3 +51,19 @@ func getFloat(params map[string]any, key string, defaultVal float64) float64 {
 	}
 	return defaultVal
 }
+
+// getString extracts a string parameter from a map, or returns the default.
+func getString(params map[string]any, key string, defaultVal string) string {
+	if params == nil {
+		return defaultVal
+	}
+	v, ok := params[key]
+	if !ok {
+		return defaultVal
+	}
+	s, ok := v.(string)
+	if ok {
+		return s
+	}
+	return defaultVal
+}

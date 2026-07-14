@@ -25,10 +25,11 @@ import (
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimageprocessor"
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimagepassthrough"
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/utils"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/comic"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/output"
+	comicServer "github.com/druzn3k/go-comic-converter/v3/pkg/comic/server"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/epub"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
-	comicServer "github.com/druzn3k/go-comic-converter/v3/pkg/comic/server"
 )
 
 func main() {
@@ -47,6 +48,10 @@ func main() {
 		version()
 	case cmd.Options.Serve != "":
 		serve(ctx, cmd)
+	case cmd.Options.Batch != "":
+		batch(ctx, cmd)
+	case cmd.Options.Watch != "":
+		watch(ctx, cmd)
 	case cmd.Options.Save:
 		save(cmd)
 	case cmd.Options.Show:
@@ -133,6 +138,22 @@ func serve(ctx context.Context, cmd *converter.Converter) {
 	utils.Printf("Starting server on %s\n", cmd.Options.Serve)
 	if err := s.Start(ctx); err != nil && err != http.ErrServerClosed {
 		utils.Fatalf("Server error: %v\n", err)
+	}
+}
+
+// batch processes multiple inputs via glob pattern.
+func batch(ctx context.Context, cmd *converter.Converter) {
+	utils.Printf("Batch processing: %s\n", cmd.Options.Batch)
+	if err := comic.ConvertBatch(ctx, cmd.Options.Batch, cmd.Options.EPUBOptions); err != nil {
+		utils.Fatalf("Batch error: %v\n", err)
+	}
+}
+
+// watch monitors a directory for new files and auto-converts.
+func watch(ctx context.Context, cmd *converter.Converter) {
+	utils.Printf("Watching: %s\n", cmd.Options.Watch)
+	if err := comic.Watch(ctx, cmd.Options.Watch, cmd.Options.EPUBOptions); err != nil {
+		utils.Fatalf("Watch error: %v\n", err)
 	}
 }
 

@@ -106,6 +106,8 @@ func (c *Converter) InitParse() {
 	c.AddStringParam(&c.Options.Output, "output", "", "Output of the EPUB (directory or EPUB): (default [INPUT].epub)")
 	c.AddStringParam(&c.Options.Author, "author", "GO Comic Converter", "Author of the EPUB")
 	c.AddStringParam(&c.Options.Title, "title", "", "Title of the EPUB")
+	c.AddStringParam(&c.Options.Batch, "batch", "", "Batch process files matching glob pattern")
+	c.AddStringParam(&c.Options.Watch, "watch", "", "Watch directory for new files and auto-convert")
 
 	c.AddSection("Config")
 	c.AddStringParam(&c.Options.Profile, "profile", c.Options.Profile, "Profile to use: \n"+c.Options.AvailableProfiles())

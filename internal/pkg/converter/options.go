@@ -43,6 +43,11 @@ type Options struct {
 	RecipeShow bool   `yaml:"-" json:"-"`
 	RecipeSave bool   `yaml:"-" json:"-"`
 
+
+	// Batch/Watch
+	Batch string `yaml:"-" json:"-"`
+	Watch string `yaml:"-" json:"-"`
+
 	// Server
 	Serve             string `yaml:"-" json:"-"`
 	MaxConcurrent     int    `yaml:"-" json:"-"`
