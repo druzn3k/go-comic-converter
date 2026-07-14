@@ -8,7 +8,6 @@ import (
 	"context"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -45,10 +44,7 @@ type epub struct {
 	imageProcessor epubimageprocessor.EPUBImageProcessor
 }
 
-type epubPart struct {
-	Cover  epubimage.EPUBImage
-	Images []epubimage.EPUBImage
-}
+type epubPart = comic.Part
 
 // xmlEscape escapes special XML characters in user-provided strings.
 func xmlEscape(s string) string {
@@ -256,81 +252,15 @@ func (e epub) writeTitleImage(wz epubzip.EPUBZip, img epubimage.EPUBImage, title
 
 // extract image and split it into part
 func (e epub) getParts(ctx context.Context) (parts []epubPart, imgStorage epubzip.StorageImageReader, err error) {
-	images, err := e.imageProcessor.Load(ctx)
-
+	comicParts, imgStorage, err := comic.GetParts(ctx, e.imageProcessor, e.EPUBOptions)
 	if err != nil {
-		return
+		return nil, imgStorage, err
 	}
-
-	// sort result by id and part
-	sort.Slice(images, func(i, j int) bool {
-		if images[i].Id == images[j].Id {
-			return images[i].Part < images[j].Part
-		}
-		return images[i].Id < images[j].Id
-	})
-
-	// Check for corrupted images in strict mode
-	if e.Strict {
-		for _, img := range images {
-			if img.Error != nil {
-				err = fmt.Errorf("strict mode: %s: %w", filepath.Join(img.Path, img.Name), img.Error)
-				return
-			}
-		}
+	parts = make([]epubPart, len(comicParts))
+	for i := range comicParts {
+		parts[i] = comicParts[i]
 	}
-
-	parts = make([]epubPart, 0)
-	cover := images[0]
-	if e.Image.HasCover || (cover.DoublePage && !e.Image.KeepDoublePageIfSplit) {
-		images = images[1:]
-	}
-
-	if e.Dry {
-		parts = append(parts, epubPart{
-			Cover:  cover,
-			Images: images,
-		})
-		return
-	}
-
-	imgStorage, err = epubzip.NewStorageImageReader(e.ImgStorage())
-	if err != nil {
-		return
-	}
-
-	// compute size of the EPUB part and try to be as close as possible of the target
-	maxSize := uint64(e.LimitMb * 1024 * 1024)
-	xhtmlSize := uint64(1024)
-	// descriptor files + title + cover
-	baseSize := uint64(128*1024) + imgStorage.Size(cover.EPUBImgPath())*2
-
-	currentSize := baseSize
-	currentImages := make([]epubimage.EPUBImage, 0)
-	part := 1
-
-	for _, img := range images {
-		imgSize := imgStorage.Size(img.EPUBImgPath()) + xhtmlSize
-		if maxSize > 0 && len(currentImages) > 0 && currentSize+imgSize > maxSize {
-			parts = append(parts, epubPart{
-				Cover:  cover,
-				Images: currentImages,
-			})
-			part += 1
-			currentSize = baseSize
-			currentImages = make([]epubimage.EPUBImage, 0)
-		}
-		currentSize += imgSize
-		currentImages = append(currentImages, img)
-	}
-	if len(currentImages) > 0 {
-		parts = append(parts, epubPart{
-			Cover:  cover,
-			Images: currentImages,
-		})
-	}
-
-	return
+	return parts, imgStorage, nil
 }
 
 // create a tree from the directories.

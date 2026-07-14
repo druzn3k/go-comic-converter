@@ -1,14 +1,16 @@
 # go-comic-converter
 
-Convert CBZ/CBR/Dir into EPUB for e-reader devices (Kindle Devices, ...)
+Convert CBZ/CBR/Dir/PDF into EPUB, KEPUB, CBZ, or HTML for e-reader devices (Kindle, Kobo, reMarkable, ...)
 
-My goal is to make a simple, cross-platform, and fast tool to convert comics into EPUB.
+My goal is to make a simple, cross-platform, and fast tool to convert comics into EPUB, KEPUB, CBZ, or HTML.
 
-EPUB is now support by Amazon through [SendToKindle](https://www.amazon.com/gp/sendtokindle/), by Email or by using the App. So I've made it simple to support the size limit constraint of those services.
+EPUB is supported by Amazon through [SendToKindle](https://www.amazon.com/gp/sendtokindle/), by Email or by using the App. I've made it simple to support the size limit constraint of those services. KEPUB output adds Kobo panel zoom support, CBZ output targets comic server apps, and HTML produces a self-contained browser viewer.
 
 # Features
 - Support input from zip, cbz, rar, cbr, pdf, directory
 - Support all Kindle devices and kobo
+- Support multiple output formats: EPUB, KEPUB (Kobo enhanced), CBZ, HTML
+- Automatic KEPUB output for Kobo device profiles
 - Support Landscape and Portrait mode
 - Customize output image quality
 - Intelligent cropping (support removing even page numbers)
@@ -17,6 +19,7 @@ EPUB is now support by Amazon through [SendToKindle](https://www.amazon.com/gp/s
 - Auto rotate (if reader mainly read on portrait)
 - Auto split double page (for easy read on portrait)
 - Keep double page if split
+- Keep split double page aspect ratio (best for landscape rendering)
 - Remove blank image (empty image is removed)
 - Manga or Normal mode
 - Support cover page or not (first page will be taken in that case)
@@ -26,11 +29,41 @@ EPUB is now support by Amazon through [SendToKindle](https://www.amazon.com/gp/s
 - Save and reuse your own perfect settings
 - Multi tasks for fast conversion
 - Apple Book Compatibility Mode
+- Strict mode (abort on first corrupted image)
+- Graceful cancellation (Ctrl+C)
 - JSON output for programmatic usage
 
 When you read the comic on a Kindle, you can customize how you read it with the `Aa` button:
 - Landscape / Portrait
 - Activate panel view for small device
+
+# Output Formats
+
+The tool supports four output formats, selected via the `-output-format` flag:
+
+### `epub` (default)
+Standard EPUB format, compatible with Kindle (via SendToKindle), Kobo, reMarkable, and most e-readers.
+When using a Kobo device profile, KEPUB is auto-selected unless explicitly overridden.
+
+### `kepub`
+Kobo Enhanced EPUB with support for Kobo's panel zoom feature. Images are wrapped in Kobo-specific
+markup for page-flip and panel navigation. Output filename uses the `.kepub.epub` extension.
+Auto-selected when a Kobo profile is used (e.g., `KoC`, `KoL`, `KoG`).
+
+### `cbz`
+Re-packaged processed images as a CBZ (ZIP of sorted images) archive. Images go through the
+full processing pipeline (crop, auto-contrast, resize, etc.) before being stored. Ideal for
+comic reader apps like Komga, Kavita, or Panelity.
+
+### `html`
+Self-contained HTML viewer with all images embedded as base64 data URIs and a vanilla JS
+page-flip navigation. No server required — open the HTML file directly in a browser.
+Perfect for quick previews or sharing.
+
+To select an output format:
+```
+$ go-comic-converter -profile SR -input ~/Download/MyComic -output-format html
+```
 
 # Installation
 
@@ -138,6 +171,56 @@ The ePub include as a first page:
 If the total is above 1, then the title of the EPUB include:
   - Title [part/total]
 
+## Convert to different output formats
+
+You can convert to EPUB, KEPUB (Kobo enhanced), CBZ, or HTML using the
+`-output-format` flag. The output file extension changes automatically.
+
+### KEPUB (Kobo)
+
+KEPUB enables panel zoom on Kobo devices. When using a Kobo profile, the
+tool automatically selects KEPUB output:
+
+```
+$ go-comic-converter -profile KoC -input ~/Download/MyComic.cbz
+# Output: ~/Download/MyComic.kepub.epub
+```
+
+Override with explicit format:
+
+```
+$ go-comic-converter -profile KoC -input ~/Download/MyComic.cbz -output-format epub
+# Output: ~/Download/MyComic.epub
+```
+
+### CBZ
+
+Process and repackage images as a CBZ archive for comic reader apps:
+
+```
+$ go-comic-converter -profile SR -input ~/Download/MyComic -output-format cbz
+# Output: ~/Download/MyComic.cbz
+```
+
+### HTML
+
+Generate a self-contained HTML viewer with base64-embedded images and
+page-flip navigation. Open directly in any browser:
+
+```
+$ go-comic-converter -profile SR -input ~/Download/MyComic.cbr -output-format html
+# Output: ~/Download/MyComic.html
+```
+
+## Strict mode
+
+By default, the tool replaces corrupted images with a 1x1 white placeholder
+and continues. Use `-strict` to abort on the first corrupted image:
+
+```
+$ go-comic-converter -profile SR -input ~/Download/MyComic -strict
+```
+
 ## Dry run
 
 If you want to preview what will be set during the conversion without running the conversion, then you can use the `-dry` option.
@@ -163,6 +246,7 @@ Options:
     Auto rotate                     : true
     Auto split double page          : true
     Keep double page if split       : true
+    Keep split double page aspect   : true
     No blank image                  : true
     Manga                           : true
     Has cover                       : true
@@ -211,6 +295,7 @@ Options:
     Auto rotate                     : true
     Auto split double page          : true
     Keep double page if split       : true
+    Keep split double page aspect   : true
     No blank image                  : true
     Manga                           : true
     Has cover                       : true
@@ -445,12 +530,12 @@ Output:
 Config:
   -profile string (default "SR")
     	Profile to use: 
-    	    - KoAO    - 1404 x 1872 - Kobo Aura ONE
-    	    - KoF     - 1440 x 1920 - Kobo Forma
-    	    - KoE     - 1404 x 1872 - Kobo Elipsa
+    	    - KoAO    - 1404 x 1872 - Kobo Aura ONE (kepub)
+    	    - KoF     - 1440 x 1920 - Kobo Forma (kepub)
+    	    - KoE     - 1404 x 1872 - Kobo Elipsa (kepub)
     	    - KV      - 1072 x 1448 - Kindle Paperwhite 3/4/Voyage/Oasis
-    	    - KoG     -  768 x 1024 - Kobo Glo
-    	    - KoA     -  758 x 1024 - Kobo Aura
+    	    - KoG     -  768 x 1024 - Kobo Glo (kepub)
+    	    - KoA     -  758 x 1024 - Kobo Aura (kepub)
     	    - RM1     - 1404 x 1872 - reMarkable 1
     	    - RM2     - 1404 x 1872 - reMarkable 2
     	    - K1      -  600 x 670  - Kindle 1
@@ -458,21 +543,21 @@ Config:
     	    - K2      -  600 x 670  - Kindle 2
     	    - K34     -  600 x 800  - Kindle Keyboard/Touch
     	    - KPW5    - 1236 x 1648 - Kindle Paperwhite 5/Signature Edition
-    	    - KoAH2O  - 1080 x 1430 - Kobo Aura H2O
-    	    - KoN     -  758 x 1024 - Kobo Nia
-    	    - KoL     - 1264 x 1680 - Kobo Libra H2O/Kobo Libra 2
+    	    - KoAH2O  - 1080 x 1430 - Kobo Aura H2O (kepub)
+    	    - KoN     -  758 x 1024 - Kobo Nia (kepub)
+    	    - KoL     - 1264 x 1680 - Kobo Libra H2O/Kobo Libra 2 (kepub)
     	    - HR      - 2400 x 3840 - High Resolution
     	    - KO      - 1264 x 1680 - Kindle Oasis 2/3
     	    - KS      - 1860 x 2480 - Kindle Scribe
-    	    - KoMT    -  600 x 800  - Kobo Mini/Touch
-    	    - KoAHD   - 1080 x 1440 - Kobo Aura HD
-    	    - KoC     - 1072 x 1448 - Kobo Clara HD/Kobo Clara 2E
-    	    - KoS     - 1440 x 1920 - Kobo Sage
+    	    - KoMT    -  600 x 800  - Kobo Mini/Touch (kepub)
+    	    - KoAHD   - 1080 x 1440 - Kobo Aura HD (kepub)
+    	    - KoC     - 1072 x 1448 - Kobo Clara HD/Kobo Clara 2E (kepub)
+    	    - KoS     - 1440 x 1920 - Kobo Sage (kepub)
     	    - SR      - 1200 x 1920 - Standard Resolution
     	    - K578    -  600 x 800  - Kindle
     	    - KDX     -  824 x 1000 - Kindle DX/DXG
     	    - KPW     -  758 x 1024 - Kindle Paperwhite 1/2
-    	    - KoGHD   - 1072 x 1448 - Kobo Glo HD
+    	    - KoGHD   - 1072 x 1448 - Kobo Glo HD (kepub)
   -quality int (default 85)
     	Quality of the image
   -grayscale (default true)
@@ -575,6 +660,11 @@ Compatibility:
 Other:
   -workers int (default number of CPUs)
     	Number of workers
+  -output-format string (default "epub")
+    	Output format: epub, cbz, kepub, html (default epub)
+    	Kobo profiles automatically select "kepub" unless overridden.
+  -strict
+    	Abort on first corrupted image instead of continuing with a placeholder
   -dry
     	Dry run to show all options
   -dry-verbose
@@ -587,7 +677,6 @@ Other:
     	Show current and available version
   -help
     	Show this help message
-```
 
 # Credit
 
