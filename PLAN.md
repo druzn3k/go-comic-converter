@@ -13,7 +13,7 @@
 The Go WASM binary exposes a `window.convert(inputBytes, optionsJSON)` function:
 
 1. **JS side** reads the uploaded file as `Uint8Array`, collects form options as JSON
-2. **Go side** writes input to the virtual filesystem (`/input/<name>.cbz`), constructs `epuboptions.EPUBOptions` from the JSON, runs the existing pipeline (`epub.New(opts).Write(ctx)` or `comic.New(opts).Convert(ctx)`)
+2. **Go side** writes input to the virtual filesystem, constructs `epuboptions.EPUBOptions` from the JSON, runs the existing pipeline
 3. **Go side** reads the output from the virtual filesystem, returns it as `Uint8Array` to JS
 4. **JS side** creates a Blob and triggers a download
 
@@ -23,9 +23,9 @@ Progress is reported via `window.onWasmProgress(msg)`.
 
 | File | Purpose |
 |------|---------|
-| `cmd/wasm/main.go` | Go WASM entry point (`//go:build js`). Reads input bytes + JSON options from JS, runs pipeline, returns output bytes. Supports EPUB, KEPUB, CBZ, HTML formats, recipe system, all filter options. |
-| `wasm/index.html` | Full options form: file drop zone, 30+ options organized in sections (Output, Image Processing, Metadata, Recipe), download result. |
-| `wasm/app.js` | JS glue: loads WASM module, handles drag-n-drop, collects form state, calls Go convert(), manages progress/error display, triggers download. |
+| `cmd/wasm/main.go` | Go WASM entry point (`//go:build js`). Handles all formats, recipes, options. |
+| `wasm/index.html` | Full options form: file drop, 30+ options, profile selector, recipe dropdown. |
+| `wasm/app.js` | JS glue: WASM loading, drag-n-drop, form collection, progress, download. |
 | `wasm/main.wasm` | Compiled WASM binary (~22MB). |
 | `wasm/wasm_exec.js` | Go WASM runtime (copied from `$(go env GOROOT)/lib/wasm/`). |
 
@@ -49,11 +49,11 @@ make wasm-serve  # Start local HTTP server on :8080
 | All image formats (JPEG, PNG, WebP) | ✅ |
 | All filter options (crop, contrast, resize, grayscale, etc.) | ✅ |
 | Recipe system (5 built-in recipes) | ✅ |
-| ComicInfo.xml metadata (series, number, genre, etc.) | ✅ |
+| ComicInfo.xml metadata | ✅ |
 | Device profiles (8 profiles) | ✅ |
-| CBR/RAR input | ⚠️ Untested (expected to work — pure Go library) |
-| PDF input | ⚠️ Untested (expected to work — pure Go library) |
-| Drag-n-drop file upload | ✅ |
+| CBR/RAR input | ⚠️ Compiled, needs testing |
+| PDF input | ⚠️ Compiled, needs testing |
+| Drag-n-drop upload | ✅ |
 | Progress indicator | ✅ |
 | Error handling | ✅ |
 | Mobile-responsive layout | ✅ |
@@ -74,9 +74,12 @@ First load downloads ~5–6 MB. After browser cache, subsequent loads are instan
 
 ## Future enhancements
 
-- **Web Workers**: run conversion off the main thread (non-blocking UI)
-- **Streaming I/O**: avoid double-copy through WASM memory via direct `Uint8Array` buffers
-- **Drag-n-drop multiple files**: batch conversion
-- **More input formats**: CBR, PDF, directory (drag a folder)
-- **More output formats**: KEPUB, CBZ, HTML preview in browser
-- **Service Worker**: offline-capable PWA
+See [PLAN-WASM-ENHANCEMENTS.md](PLAN-WASM-ENHANCEMENTS.md) for the detailed implementation roadmap.
+
+Planned enhancements (by priority):
+1. CBR/PDF/KEPUB/CBZ/HTML — test and document (already compiled)
+2. Web Workers — non-blocking conversion
+3. Batch conversion — multi-file drag-drop
+4. Service Worker — offline PWA
+5. Streaming I/O — reduce memory copies
+6. HTML inline preview
