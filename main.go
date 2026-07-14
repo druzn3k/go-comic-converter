@@ -19,13 +19,13 @@ import (
 	"runtime/debug"
 	"sort"
 	"syscall"
-
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/converter"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimagepassthrough"
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimageprocessor"
+	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimagepassthrough"
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/utils"
 	"github.com/celogeek/go-comic-converter/v3/pkg/comic/output"
 	"github.com/celogeek/go-comic-converter/v3/pkg/epub"
+	"github.com/celogeek/go-comic-converter/v3/pkg/epuboptions"
 )
 
 func main() {
@@ -116,6 +116,88 @@ func reset(cmd *converter.Converter) {
 	)
 }
 
+// runSingleFormat dispatches a non-EPUB format through the OutputWriter path.
+// It loads images via the processor, creates OutputParts, and calls the
+// registered OutputWriter for the given format.
+func runSingleFormat(ctx context.Context, format string, opts epuboptions.EPUBOptions, cmd *converter.Converter) error {
+	var imageProcessor epubimageprocessor.EPUBImageProcessor
+	if opts.Image.Format == "copy" {
+		imageProcessor = epubimagepassthrough.New(opts)
+	} else {
+		imageProcessor = epubimageprocessor.New(opts)
+	}
+
+	images, err := imageProcessor.Load(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Sort and validate
+	sort.Slice(images, func(i, j int) bool {
+		if images[i].Id == images[j].Id {
+			return images[i].Part < images[j].Part
+		}
+		return images[i].Id < images[j].Id
+	})
+
+	if opts.Strict {
+		for _, img := range images {
+			if img.Error != nil {
+				return fmt.Errorf("strict mode: %s: %v",
+					filepath.Join(img.Path, img.Name), img.Error)
+			}
+		}
+	}
+
+	if len(images) == 0 {
+		return fmt.Errorf("no images found")
+	}
+
+	// Separate cover and build parts
+	cover := images[0]
+	pageImages := images
+	if opts.Image.HasCover {
+		pageImages = images[1:]
+	}
+
+	parts := []output.OutputPart{{
+		Cover:      cover,
+		Images:     pageImages,
+		PartNumber: 1,
+		TotalParts: 1,
+		Metadata: output.PartMetadata{
+			Title:       opts.Title,
+			Author:      opts.Author,
+			Publisher:   "GO Comic Converter",
+			ImageConfig: opts.Image,
+		},
+	}}
+
+	writer := output.Get(format)
+	if writer == nil {
+		return fmt.Errorf("unsupported output format: %s", format)
+	}
+
+	// Use the format's correct extension instead of .epub
+	ext := filepath.Ext(opts.Output)
+	if ext != "" {
+		opts.Output = opts.Output[:len(opts.Output)-len(ext)] + writer.Extension()
+	} else {
+		opts.Output = opts.Output + writer.Extension()
+	}
+
+	paths, err := writer.Write(ctx, parts, opts)
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			fmt.Println("\nCancelled")
+			os.Exit(1)
+		}
+		return err
+	}
+	_ = paths
+	return nil
+}
+
 func generate(ctx context.Context, cmd *converter.Converter) {
 	if err := cmd.Validate(); err != nil {
 		cmd.Fatal(err)
@@ -145,8 +227,32 @@ func generate(ctx context.Context, cmd *converter.Converter) {
 		format = "epub"
 	}
 
-	if format == "epub" {
-		// Legacy EPUB path
+	if format == "all" {
+		// "all" path: run each registered format once
+		for _, f := range output.Available() {
+			runFormat := f
+			runOpts := cmd.Options.EPUBOptions
+			runOpts.Output = cmd.Options.Output
+
+			writer := output.Get(runFormat)
+			if writer == nil {
+				continue
+			}
+
+			// Adjust extension
+			ext := filepath.Ext(runOpts.Output)
+			if ext != "" {
+				runOpts.Output = runOpts.Output[:len(runOpts.Output)-len(ext)] + writer.Extension()
+			} else {
+				runOpts.Output = runOpts.Output + writer.Extension()
+			}
+
+			if err := runSingleFormat(ctx, runFormat, runOpts, cmd); err != nil {
+				cmd.Fatal(err)
+			}
+		}
+	} else if format == "epub" {
+		// Legacy EPUB path: handles everything internally
 		if err := epub.New(cmd.Options.EPUBOptions).Write(ctx); err != nil {
 			if errors.Is(err, context.Canceled) {
 				utils.Println("\nCancelled")
@@ -160,82 +266,8 @@ func generate(ctx context.Context, cmd *converter.Converter) {
 			utils.Fatalf("Error: %v\n", err)
 		}
 	} else {
-		// New OutputWriter path with image processing
-		var imageProcessor epubimageprocessor.EPUBImageProcessor
-		if cmd.Options.Image.Format == "copy" {
-			imageProcessor = epubimagepassthrough.New(cmd.Options.EPUBOptions)
-		} else {
-			imageProcessor = epubimageprocessor.New(cmd.Options.EPUBOptions)
-		}
-
-		images, err := imageProcessor.Load(ctx)
-		if err != nil {
-			utils.Fatalf("Error: %v\n", err)
-		}
-
-		// Sort and validate
-		sort.Slice(images, func(i, j int) bool {
-			if images[i].Id == images[j].Id {
-				return images[i].Part < images[j].Part
-			}
-			return images[i].Id < images[j].Id
-		})
-
-		if cmd.Options.Strict {
-			for _, img := range images {
-				if img.Error != nil {
-					utils.Fatalf("Error: strict mode: %s: %v\n",
-						filepath.Join(img.Path, img.Name), img.Error)
-				}
-			}
-		}
-
-		if len(images) == 0 {
-			utils.Fatalf("Error: no images found\n")
-		}
-
-		// Separate cover and build parts
-		cover := images[0]
-		pageImages := images
-		if cmd.Options.Image.HasCover {
-			pageImages = images[1:]
-		}
-
-		parts := []output.OutputPart{{
-			Cover:      cover,
-			Images:     pageImages,
-			PartNumber: 1,
-			TotalParts: 1,
-			Metadata: output.PartMetadata{
-				Title:       cmd.Options.Title,
-				Author:      cmd.Options.Author,
-				Publisher:   "GO Comic Converter",
-				ImageConfig: cmd.Options.Image,
-			},
-		}}
-
-		writer := output.Get(format)
-		if writer == nil {
-			cmd.Fatal(fmt.Errorf("unsupported output format: %s", format))
-		}
-
-		// Use the format's correct extension instead of .epub
-		ext := filepath.Ext(cmd.Options.Output)
-		if ext != "" {
-			cmd.Options.Output = cmd.Options.Output[:len(cmd.Options.Output)-len(ext)] + writer.Extension()
-		} else {
-			cmd.Options.Output = cmd.Options.Output + writer.Extension()
-		}
-
-		paths, err := writer.Write(ctx, parts, cmd.Options.EPUBOptions)
-		if err != nil {
-			if errors.Is(err, context.Canceled) {
-				utils.Println("\nCancelled")
-				os.Exit(1)
-			}
-			utils.Fatalf("Error: %v\n", err)
-		}
-		_ = paths
+		// OutputWriter path: load images, dispatch to format writer
+		runSingleFormat(ctx, format, cmd.Options.EPUBOptions, cmd)
 	}
 
 	if !cmd.Options.Dry {
