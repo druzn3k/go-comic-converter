@@ -414,6 +414,13 @@ func (c *Converter) Validate() error {
 		return errors.New("crop limit should be between 0 and 100")
 	}
 
+	// Output Format
+	if c.Options.OutputFormat != "" && c.Options.OutputFormat != "epub" &&
+		c.Options.OutputFormat != "kepub" && c.Options.OutputFormat != "cbz" &&
+		c.Options.OutputFormat != "html" && c.Options.OutputFormat != "all" {
+		return errors.New("output-format should be epub, kepub, cbz, html, or all")
+	}
+
 	return nil
 }
 

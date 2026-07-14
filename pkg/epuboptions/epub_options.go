@@ -16,12 +16,13 @@ type EPUBOptions struct {
 	Image                      Image `yaml:"image" json:"image"`
 
 	// Other
-	Dry        bool `yaml:"-" json:"dry"`
-	DryVerbose bool `yaml:"-" json:"dry_verbose"`
-	Quiet      bool `yaml:"-" json:"-"`
-	Json       bool `yaml:"-" json:"-"`
-	Strict     bool `yaml:"-" json:"strict"`
-	Workers    int  `yaml:"-" json:"workers"`
+	Dry          bool   `yaml:"-" json:"dry"`
+	DryVerbose   bool   `yaml:"-" json:"dry_verbose"`
+	Quiet        bool   `yaml:"-" json:"-"`
+	Json         bool   `yaml:"-" json:"-"`
+	Strict       bool   `yaml:"-" json:"strict"`
+	Workers      int    `yaml:"-" json:"workers"`
+	OutputFormat string `yaml:"output_format,omitempty" json:"output_format,omitempty"`
 }
 
 func (o EPUBOptions) WorkersRatio(pct int) (nbWorkers int) {

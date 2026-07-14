@@ -66,3 +66,113 @@ func TestValidateAcceptsDirectoryWithCopy(t *testing.T) {
 		t.Errorf("should not fail on directory with copy format: %v", err)
 	}
 }
+
+func TestValidateOutputFormatDefault(t *testing.T) {
+	dir := t.TempDir()
+	c := New()
+	c.Options.Input = dir
+	c.Options.Profile = "SR"
+	c.Options.Image.View.Color.Foreground = "000"
+	c.Options.Image.View.Color.Background = "FFF"
+	// OutputFormat empty means default
+	c.Options.OutputFormat = ""
+
+	err := c.Validate()
+	// Should not fail on output format (may fail on output dir)
+	if err != nil && (contains(err.Error(), "output-format") || contains(err.Error(), "format should be")) {
+		t.Errorf("should not fail on empty output-format: %v", err)
+	}
+}
+
+func TestValidateOutputFormatEpub(t *testing.T) {
+	dir := t.TempDir()
+	c := New()
+	c.Options.Input = dir
+	c.Options.Profile = "SR"
+	c.Options.Image.View.Color.Foreground = "000"
+	c.Options.Image.View.Color.Background = "FFF"
+	c.Options.OutputFormat = "epub"
+
+	err := c.Validate()
+	if err != nil && contains(err.Error(), "output-format") {
+		t.Errorf("epub should be a valid output format: %v", err)
+	}
+}
+
+func TestValidateOutputFormatKepub(t *testing.T) {
+	dir := t.TempDir()
+	c := New()
+	c.Options.Input = dir
+	c.Options.Profile = "SR"
+	c.Options.Image.View.Color.Foreground = "000"
+	c.Options.Image.View.Color.Background = "FFF"
+	c.Options.OutputFormat = "kepub"
+
+	err := c.Validate()
+	if err != nil && contains(err.Error(), "output-format") {
+		t.Errorf("kepub should be a valid output format: %v", err)
+	}
+}
+
+func TestValidateOutputFormatCbz(t *testing.T) {
+	dir := t.TempDir()
+	c := New()
+	c.Options.Input = dir
+	c.Options.Profile = "SR"
+	c.Options.Image.View.Color.Foreground = "000"
+	c.Options.Image.View.Color.Background = "FFF"
+	c.Options.OutputFormat = "cbz"
+
+	err := c.Validate()
+	if err != nil && contains(err.Error(), "output-format") {
+		t.Errorf("cbz should be a valid output format: %v", err)
+	}
+}
+
+func TestValidateOutputFormatHtml(t *testing.T) {
+	dir := t.TempDir()
+	c := New()
+	c.Options.Input = dir
+	c.Options.Profile = "SR"
+	c.Options.Image.View.Color.Foreground = "000"
+	c.Options.Image.View.Color.Background = "FFF"
+	c.Options.OutputFormat = "html"
+
+	err := c.Validate()
+	if err != nil && contains(err.Error(), "output-format") {
+		t.Errorf("html should be a valid output format: %v", err)
+	}
+}
+
+func TestValidateOutputFormatAll(t *testing.T) {
+	dir := t.TempDir()
+	c := New()
+	c.Options.Input = dir
+	c.Options.Profile = "SR"
+	c.Options.Image.View.Color.Foreground = "000"
+	c.Options.Image.View.Color.Background = "FFF"
+	c.Options.OutputFormat = "all"
+
+	err := c.Validate()
+	if err != nil && contains(err.Error(), "output-format") {
+		t.Errorf("'all' should be a valid output format: %v", err)
+	}
+}
+
+func TestValidateOutputFormatInvalid(t *testing.T) {
+	dir := t.TempDir()
+	c := New()
+	c.Options.Input = dir
+	c.Options.Profile = "SR"
+	c.Options.Image.View.Color.Foreground = "000"
+	c.Options.Image.View.Color.Background = "FFF"
+	c.Options.OutputFormat = "invalid"
+
+	err := c.Validate()
+	if err == nil {
+		t.Fatal("expected error for invalid output format, got nil")
+	}
+	if !contains(err.Error(), "output-format") {
+		t.Errorf("error should mention 'output-format', got: %v", err)
+	}
+}

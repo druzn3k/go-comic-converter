@@ -49,3 +49,22 @@ func TestEPUBWriterWriteNoInput(t *testing.T) {
 		t.Errorf("expected nil paths, got %v", paths)
 	}
 }
+
+func TestAvailableFormats(t *testing.T) {
+	formats := Available()
+	if len(formats) == 0 {
+		t.Fatal("expected at least one registered format")
+	}
+
+	formatSet := make(map[string]bool)
+	for _, f := range formats {
+		formatSet[f] = true
+	}
+
+	// All expected formats should be registered
+	for _, expected := range []string{"epub", "kepub", "cbz", "html"} {
+		if !formatSet[expected] {
+			t.Errorf("expected format %q to be registered", expected)
+		}
+	}
+}

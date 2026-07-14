@@ -212,6 +212,17 @@ $ go-comic-converter -profile SR -input ~/Download/MyComic.cbr -output-format ht
 # Output: ~/Download/MyComic.html
 ```
 
+### All formats
+
+Produce all output formats in a single conversion run. The image pipeline
+runs once and each format writer produces its output:
+
+```
+$ go-comic-converter -profile SR -input ~/Download/MyComic -output-format all
+# Output: ~/Download/MyComic.epub, ~/Download/MyComic.cbz, ~/Download/MyComic.html
+# (KEPUB also included when a Kobo profile is used)
+```
+
 ## Strict mode
 
 By default, the tool replaces corrupted images with a 1x1 white placeholder
@@ -661,8 +672,9 @@ Other:
   -workers int (default number of CPUs)
     	Number of workers
   -output-format string (default "epub")
-    	Output format: epub, cbz, kepub, html (default epub)
+    	Output format: epub, cbz, kepub, html, or all (default epub)
     	Kobo profiles automatically select "kepub" unless overridden.
+    	"all" produces every format from a single conversion run.
   -strict
     	Abort on first corrupted image instead of continuing with a placeholder
   -dry
