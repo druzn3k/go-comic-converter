@@ -17,6 +17,7 @@ import (
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubprogress"
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubzip"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/filters"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/source"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 )
 
@@ -27,7 +28,14 @@ type EPUBImageProcessor interface {
 
 type ePUBImageProcessor struct {
 	epuboptions.EPUBOptions
-	chain *filters.Chain
+	chain   *filters.Chain
+	testSrc source.Source // non-nil only in tests; Load() uses this instead of creating one
+}
+
+// SetTestSource injects a source.Source for testing. When non-nil, load()
+// uses this source instead of creating one from the input path.
+func (e *ePUBImageProcessor) SetTestSource(src source.Source) {
+	e.testSrc = src
 }
 
 func New(o epuboptions.EPUBOptions) EPUBImageProcessor {
