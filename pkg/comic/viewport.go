@@ -1,7 +1,7 @@
 package comic
 
 import (
-	"github.com/celogeek/go-comic-converter/v3/pkg/comic/viewport"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/viewport"
 )
 
 // ImageAspect, PartAspect, ComputeAspectRatio, and ComputeViewPort

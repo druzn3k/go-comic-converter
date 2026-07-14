@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubzip"
-	"github.com/celogeek/go-comic-converter/v3/pkg/epuboptions"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubzip"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 )
 
 func init() {

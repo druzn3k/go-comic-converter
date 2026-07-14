@@ -3,8 +3,8 @@ package epubimageprocessor
 import (
 	"context"
 
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimageloader"
-	"github.com/celogeek/go-comic-converter/v3/pkg/comic/source"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimageloader"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/source"
 )
 
 func (e ePUBImageProcessor) load(ctx context.Context) (totalImages int, output <-chan epubimageloader.Task, err error) {

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimageloader"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/sortpath"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimageloader"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/sortpath"
 )
 
 // cbzSource implements Source for CBZ/ZIP comic archives.

@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimage"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimageprocessor"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubzip"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimage"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimageprocessor"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubzip"
 )
 
 // GetParts loads images via the processor, sorts them, extracts the cover,

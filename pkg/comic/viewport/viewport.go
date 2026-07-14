@@ -6,7 +6,7 @@ package viewport
 import (
 	"math"
 
-	"github.com/celogeek/go-comic-converter/v3/pkg/epuboptions"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 )
 
 // ImageAspect carries the aspect ratio of a single image.

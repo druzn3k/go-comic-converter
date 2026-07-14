@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"image"
 
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimageloader"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimageloader"
 	pdfimage "github.com/raff/pdfreader/image"
 	"github.com/raff/pdfreader/pdfread"
 )

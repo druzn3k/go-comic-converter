@@ -1,7 +1,7 @@
 package epubimagepassthrough
 
 import (
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimageloader"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimageloader"
 	"context"
 	"archive/zip"
 	"bytes"
@@ -18,12 +18,12 @@ import (
 
 	"github.com/nwaples/rardecode/v2"
 
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimage"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimageprocessor"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubprogress"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubzip"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/sortpath"
-	"github.com/celogeek/go-comic-converter/v3/pkg/epuboptions"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimage"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimageprocessor"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubprogress"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubzip"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/sortpath"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 )
 
 type ePUBImagePassthrough struct {

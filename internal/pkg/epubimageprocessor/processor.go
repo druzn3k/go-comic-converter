@@ -2,7 +2,7 @@
 package epubimageprocessor
 
 import (
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimageloader"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimageloader"
 	"context"
 	"fmt"
 	"image"
@@ -12,11 +12,11 @@ import (
 
 	"github.com/disintegration/gift"
 
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimage"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimagefilters"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubprogress"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubzip"
-	"github.com/celogeek/go-comic-converter/v3/pkg/epuboptions"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimage"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimagefilters"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubprogress"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubzip"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 )
 
 type EPUBImageProcessor interface {

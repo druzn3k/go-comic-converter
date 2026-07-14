@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-13  
 **Scope:** Every Go source file in the project  
-**Module:** github.com/celogeek/go-comic-converter/v3 (Go 1.23)
+**Module:** github.com/druzn3k/go-comic-converter/v3 (Go 1.23)
 
 ---
 

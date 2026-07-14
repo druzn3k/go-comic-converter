@@ -4,7 +4,7 @@
 
 **go-comic-converter** (v3) converts CBZ/CBR/Directory/PDF sources into EPUB files optimized for e-readers (Kindle, Kobo, reMarkable). A single CLI binary written in Go 1.23.
 
-Module: `github.com/celogeek/go-comic-converter/v3`  
+Module: `github.com/druzn3k/go-comic-converter/v3`  
 Entry: `main.go` → CLI flag parsing → `epub.New(options).Write()`  
 Config: `~/.go-comic-converter.yaml` (YAML, saved/loaded via `go-flags`-like custom parser)
 
@@ -13,7 +13,7 @@ Config: `~/.go-comic-converter.yaml` (YAML, saved/loaded via `go-flags`-like cus
 ```
 .
 ├── main.go              # CLI entry: parse flags → version/save/show/reset/generate
-├── go.mod               # Module: github.com/celogeek/go-comic-converter/v3 (Go 1.23)
+├── go.mod               # Module: github.com/druzn3k/go-comic-converter/v3 (Go 1.23)
 ├── go.sum
 ├── README.md            # 602-line README with full docs
 ├── LICENSE.txt          # License
@@ -313,7 +313,7 @@ Currently minimal: only `internal/pkg/utils` has Example-style tests (`utils_tes
 
 ```
 go build -o go-comic-converter .
-go install github.com/celogeek/go-comic-converter/v3@latest
+go install github.com/druzn3k/go-comic-converter/v3@latest
 ```
 
 No Makefile, no CI config, no Docker.

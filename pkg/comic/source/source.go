@@ -8,7 +8,7 @@ package source
 import (
 	"context"
 
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimageloader"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimageloader"
 )
 
 // Source represents a source of comic images.

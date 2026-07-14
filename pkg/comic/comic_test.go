@@ -3,8 +3,8 @@ package comic
 import (
 	"testing"
 
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimage"
-	"github.com/celogeek/go-comic-converter/v3/pkg/epuboptions"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimage"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 )
 
 func TestOptionsAlias(t *testing.T) {

@@ -1,7 +1,7 @@
 package epubimageprocessor
 
 import (
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimageloader"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimageloader"
 	"context"
 	"bytes"
 	"image"
@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/celogeek/go-comic-converter/v3/pkg/epuboptions"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 )
 
 // createTestJPEG creates a JPEG image of the given dimensions.

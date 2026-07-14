@@ -1,7 +1,7 @@
 package comic
 
 import (
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimage"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimage"
 )
 
 // Part is a format-agnostic grouping of processed images.

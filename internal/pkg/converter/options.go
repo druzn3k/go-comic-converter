@@ -11,8 +11,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/utils"
-	"github.com/celogeek/go-comic-converter/v3/pkg/epuboptions"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/utils"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 )
 
 type Options struct {

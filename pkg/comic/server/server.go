@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/converter"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/converter"
 )
 
 // Config holds server configuration.

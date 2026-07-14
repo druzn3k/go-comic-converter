@@ -21,14 +21,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/converter"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimageprocessor"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimagepassthrough"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/utils"
-	"github.com/celogeek/go-comic-converter/v3/pkg/comic/output"
-	"github.com/celogeek/go-comic-converter/v3/pkg/epub"
-	"github.com/celogeek/go-comic-converter/v3/pkg/epuboptions"
-	comicServer "github.com/celogeek/go-comic-converter/v3/pkg/comic/server"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/converter"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimageprocessor"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimagepassthrough"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/utils"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/output"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/epub"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
+	comicServer "github.com/druzn3k/go-comic-converter/v3/pkg/comic/server"
 )
 
 func main() {
@@ -65,7 +65,7 @@ func version() {
 	}
 
 	latestVersion := "unknown"
-	resp, err := http.Get("https://api.github.com/repos/celogeek/go-comic-converter/tags")
+	resp, err := http.Get("https://api.github.com/repos/druzn3k/go-comic-converter/tags")
 	if err == nil {
 		defer resp.Body.Close()
 		if resp.StatusCode == http.StatusOK {
@@ -83,7 +83,7 @@ func version() {
   Available Version: %s
 
 To install the latest version:
-$ go install github.com/celogeek/go-comic-converter/v3@%s
+$ go install github.com/druzn3k/go-comic-converter/v3@%s
 `,
 		bi.Main.Path,
 		bi.Main.Sum,

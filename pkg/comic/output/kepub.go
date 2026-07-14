@@ -14,16 +14,16 @@ import (
 
 	"github.com/gofrs/uuid/v5"
 
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimage"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimagepassthrough"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimageprocessor"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubprogress"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubtemplates"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubtree"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubzip"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/utils"
-	"github.com/celogeek/go-comic-converter/v3/pkg/comic/viewport"
-	"github.com/celogeek/go-comic-converter/v3/pkg/epuboptions"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimage"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimagepassthrough"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimageprocessor"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubprogress"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubtemplates"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubtree"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubzip"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/utils"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/viewport"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 )
 
 func init() {

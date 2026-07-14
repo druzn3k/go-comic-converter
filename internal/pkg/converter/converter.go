@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/utils"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/utils"
 )
 
 // hexColorRe validates hexadecimal color codes (RGB format).

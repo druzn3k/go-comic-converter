@@ -10,10 +10,10 @@ import (
 
 	"github.com/gofrs/uuid/v5"
 
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimageprocessor"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimagepassthrough"
-	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubzip"
-	"github.com/celogeek/go-comic-converter/v3/pkg/comic/output"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimageprocessor"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimagepassthrough"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubzip"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/output"
 )
 
 // ErrImageCorrupted is returned by Convert() when some images had errors

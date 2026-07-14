@@ -67,26 +67,51 @@ $ go-comic-converter -profile SR -input ~/Download/MyComic -output-format html
 
 # Installation
 
+## From source
+
 First ensure to have a working version of GO: [Installation](https://go.dev/doc/install)
 
 Then install the last version of the tool:
 ```
-$ go install github.com/celogeek/go-comic-converter/v3
+$ go install github.com/druzn3k/go-comic-converter/v3
 ```
 
 To force install a specific version:
 ```
 # specific version
-$ go install github.com/celogeek/go-comic-converter/v3@v3.0.0
+$ go install github.com/druzn3k/go-comic-converter/v3@v3.0.0
 
 # main branch
-$ go install github.com/celogeek/go-comic-converter/v3@main
+$ go install github.com/druzn3k/go-comic-converter/v3@main
 
 # specific commit
-$ go install github.com/celogeek/go-comic-converter/v3@COMMIT_HASH
+$ go install github.com/druzn3k/go-comic-converter/v3@COMMIT_HASH
 ```
 
-Add GOPATH to your PATH
+## Docker
+
+A multi-stage Docker image is provided for containerized usage:
+
+```
+$ docker build -t go-comic-converter .
+$ docker run --rm go-comic-converter --help
+```
+
+Mount your comics and convert:
+```
+$ docker run --rm -v ~/Download:/data:ro go-comic-converter \
+    -profile SR -input /data/MyComic.cbz
+```
+
+To start the HTTP server mode:
+```
+$ docker run --rm -p 8080:8080 -v ~/Download:/data go-comic-converter \
+    -serve :8080
+```
+
+## From source (traditional Go install)
+
+Add GOPATH to your PATH:
 ```
 $ export PATH=$(go env GOPATH)/bin:$PATH
 ```
@@ -105,13 +130,13 @@ You can check if a new version is available with:
 ```
 $ go-comic-converter -version
 go-comic-converter
-  Path             : github.com/celogeek/go-comic-converter/v3
+  Path             : github.com/druzn3k/go-comic-converter/v3
   Sum              : h1:tUFF2m/fGlOJOwC0/PlTopMfcBMprKvgr6TiQHQxEeo=
   Version          : v3.0.0
   Available Version: v3.0.0
 
 To install the latest version:
-$ go install github.com/celogeek/go-comic-converter/v3@v3.0.0
+$ go install github.com/druzn3k/go-comic-converter/v3@v3.0.0
 ```
 
 # Supported image files
