@@ -106,6 +106,11 @@ func (c *Converter) InitParse() {
 	c.AddStringParam(&c.Options.Output, "output", "", "Output of the EPUB (directory or EPUB): (default [INPUT].epub)")
 	c.AddStringParam(&c.Options.Author, "author", "GO Comic Converter", "Author of the EPUB")
 	c.AddStringParam(&c.Options.Title, "title", "", "Title of the EPUB")
+	c.AddStringParam(&c.Options.Series, "series", "", "Series name for ComicInfo.xml")
+	c.AddStringParam(&c.Options.Number, "number", "", "Issue number for ComicInfo.xml")
+	c.AddStringParam(&c.Options.Summary, "summary", "", "Summary/description for ComicInfo.xml")
+	c.AddStringParam(&c.Options.Genre, "genre", "", "Genre for ComicInfo.xml")
+	c.AddBoolParam(&c.Options.Manga, "manga-tag", false, "Manga flag for ComicInfo.xml")
 	c.AddStringParam(&c.Options.Batch, "batch", "", "Batch process files matching glob pattern")
 	c.AddStringParam(&c.Options.Watch, "watch", "", "Watch directory for new files and auto-convert")
 
@@ -137,7 +142,7 @@ func (c *Converter) InitParse() {
 	c.AddStringParam(&c.Options.Image.View.Color.Foreground, "foreground-color", c.Options.Image.View.Color.Foreground, "Foreground color in hexadecimal format RGB. Black=000, White=FFF")
 	c.AddStringParam(&c.Options.Image.View.Color.Background, "background-color", c.Options.Image.View.Color.Background, "Background color in hexadecimal format RGB. Black=000, White=FFF, Light Gray=DDD, Dark Gray=777")
 	c.AddBoolParam(&c.Options.Image.Resize, "resize", c.Options.Image.Resize, "Reduce image size if exceed device size")
-	c.AddStringParam(&c.Options.Image.Format, "format", c.Options.Image.Format, "Format of output images: jpeg (lossy), png (lossless), copy (no processing)")
+	c.AddStringParam(&c.Options.Image.Format, "format", c.Options.Image.Format, "Format of output images: jpeg (lossy), png (lossless), webp (lossy), copy (no processing)")
 	c.AddFloatParam(&c.Options.Image.View.AspectRatio, "aspect-ratio", c.Options.Image.View.AspectRatio, "Aspect ratio (height/width) of the output\n -1 = same as device\n  0 = same as source\n1.6 = amazon advice for kindle")
 	c.AddBoolParam(&c.Options.Image.View.PortraitOnly, "portrait-only", c.Options.Image.View.PortraitOnly, "Portrait only: force orientation to portrait only.")
 	c.AddIntParam(&c.Options.TitlePage, "titlepage", c.Options.TitlePage, "Title page\n0 = never\n1 = always\n2 = only if epub is split")
@@ -397,8 +402,8 @@ func (c *Converter) Validate() error {
 	}
 
 	// Format
-	if !slices.Contains([]string{"jpeg", "png", "copy"}, c.Options.Image.Format) {
-		return errors.New("format should be jpeg, png or copy")
+	if !slices.Contains([]string{"jpeg", "png", "webp", "copy"}, c.Options.Image.Format) {
+		return errors.New("format should be jpeg, png, webp or copy")
 	}
 
 	// Passthrough mode does not support PDF input (only for files, not directories)

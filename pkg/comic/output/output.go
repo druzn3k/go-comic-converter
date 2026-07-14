@@ -26,6 +26,12 @@ type PartMetadata struct {
 	Title       string
 	Author      string
 	Publisher   string
+	Series      string
+	Number      string
+	Summary     string
+	Genre       string
+	Writer      string
+	Manga       string
 	UID         string
 	UpdatedAt   string
 	ImageConfig epuboptions.Image

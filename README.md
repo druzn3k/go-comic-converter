@@ -725,3 +725,13 @@ This project is largely inspired from KCC (Kindle Comic Converter). Thanks:
 
 Thanks for UI contribution:
  - [manueldidonna / Comic2Books](https://github.com/manueldidonna/comic2books)
+
+# Next Features
+
+See [NEXT_PLAN.md](NEXT_PLAN.md) for the detailed implementation plan covering:
+
+1. **Wire recipe system** — connect `-recipe`/`-recipe-show`/`-recipe-save` to the conversion pipeline
+2. **HTTP server workers** — wire worker goroutines so `POST /api/convert` actually runs conversions
+3. **ComicInfo.xml** — add metadata XML to CBZ output for Komga/Kavita compatibility
+4. **WebP output** — add WebP as an image encoding option (alongside JPEG/PNG)
+5. **Watch debouncing** — prevent duplicate conversions from fsnotify multiple events

@@ -30,6 +30,9 @@ import (
 	comicServer "github.com/druzn3k/go-comic-converter/v3/pkg/comic/server"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/epub"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
+	"gopkg.in/yaml.v3"
+
+	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/filters"
 )
 
 func main() {
@@ -128,7 +131,7 @@ func reset(cmd *converter.Converter) {
 
 // serve starts the HTTP server mode.
 func serve(ctx context.Context, cmd *converter.Converter) {
-	s := comicServer.New(comicServer.Config{
+	s := comicServer.New(ctx, comicServer.Config{
 		Addr:            cmd.Options.Serve,
 		MaxConcurrent:   cmd.Options.MaxConcurrent,
 		AllowLocalPaths: cmd.Options.AllowLocalPaths,
@@ -160,12 +163,18 @@ func watch(ctx context.Context, cmd *converter.Converter) {
 // runSingleFormat dispatches a non-EPUB format through the OutputWriter path.
 // It loads images via the processor, creates OutputParts, and calls the
 // registered OutputWriter for the given format.
-func runSingleFormat(ctx context.Context, format string, opts epuboptions.EPUBOptions, cmd *converter.Converter) error {
+func runSingleFormat(ctx context.Context, format string, opts epuboptions.EPUBOptions, cmd *converter.Converter, chain *filters.Chain) error {
 	var imageProcessor epubimageprocessor.EPUBImageProcessor
 	if opts.Image.Format == "copy" {
 		imageProcessor = epubimagepassthrough.New(opts)
 	} else {
-		imageProcessor = epubimageprocessor.New(opts)
+		p := epubimageprocessor.New(opts)
+		if chain != nil {
+			if sp, ok := p.(interface{ SetRecipe(*filters.Chain) }); ok {
+				sp.SetRecipe(chain)
+			}
+		}
+		imageProcessor = p
 	}
 
 	images, err := imageProcessor.Load(ctx)
@@ -240,6 +249,49 @@ func runSingleFormat(ctx context.Context, format string, opts epuboptions.EPUBOp
 }
 
 func generate(ctx context.Context, cmd *converter.Converter) {
+	// --- Recipe handling (exit-early, before validation) ---
+	if cmd.Options.RecipeShow && cmd.Options.Recipe == "" {
+		names := filters.BuiltinRecipeNames()
+		info := map[string]any{
+			"message":       "No recipe specified. Available builtin recipes:",
+			"builtin":       names,
+			"default_chain": "Uses standard processing (crop, contrast, resize, grayscale, etc.)",
+		}
+		out, _ := yaml.Marshal(info)
+		utils.Println(string(out))
+		os.Exit(0)
+	}
+	if cmd.Options.RecipeSave && cmd.Options.Recipe == "" {
+		recipe := filters.Recipe{
+			APIVersion:  1,
+			Name:        "custom",
+			Description: "Recipe from current options",
+			Filters:     optionsToFilterConfigs(&cmd.Options.EPUBOptions),
+		}
+		out, err := yaml.Marshal(recipe)
+		if err != nil {
+			cmd.Fatal(fmt.Errorf("failed to marshal recipe: %w", err))
+		}
+		utils.Println(string(out))
+		os.Exit(0)
+	}
+	var chain *filters.Chain
+	if cmd.Options.Recipe != "" {
+		var err error
+		chain, err = loadRecipe(cmd.Options.Recipe)
+		if err != nil {
+			cmd.Fatal(err)
+		}
+		if cmd.Options.RecipeShow {
+			recipeData, _ := yaml.Marshal(map[string]string{
+				"recipe":  cmd.Options.Recipe,
+				"filters": fmt.Sprintf("%d filter(s)", chain.Len()),
+			})
+			utils.Println(string(recipeData))
+			os.Exit(0)
+		}
+	}
+
 	if err := cmd.Validate(); err != nil {
 		cmd.Fatal(err)
 	}
@@ -288,7 +340,7 @@ func generate(ctx context.Context, cmd *converter.Converter) {
 				runOpts.Output = runOpts.Output + writer.Extension()
 			}
 
-			if err := runSingleFormat(ctx, runFormat, runOpts, cmd); err != nil {
+			if err := runSingleFormat(ctx, runFormat, runOpts, cmd, chain); err != nil {
 				cmd.Fatal(err)
 			}
 		}
@@ -308,10 +360,70 @@ func generate(ctx context.Context, cmd *converter.Converter) {
 		}
 	} else {
 		// OutputWriter path: load images, dispatch to format writer
-		runSingleFormat(ctx, format, cmd.Options.EPUBOptions, cmd)
+		runSingleFormat(ctx, format, cmd.Options.EPUBOptions, cmd, chain)
 	}
 
 	if !cmd.Options.Dry {
 		cmd.Stats()
 	}
+}
+
+// loadRecipe loads a filter chain by name (builtin) or from a YAML file path.
+func loadRecipe(nameOrPath string) (*filters.Chain, error) {
+	chain, err := filters.BuiltinRecipe(nameOrPath)
+	if err == nil {
+		return chain, nil
+	}
+	// Not a builtin; treat as file path
+	data, err := os.ReadFile(nameOrPath)
+	if err != nil {
+		return nil, fmt.Errorf("recipe %q not found as builtin or file: %w", nameOrPath, err)
+	}
+	return filters.FromYAML(string(data))
+}
+
+// optionsToFilterConfigs converts the current image options into a list of
+// filter configurations that approximates the default processing chain.
+func optionsToFilterConfigs(opts *epuboptions.EPUBOptions) []filters.FilterConfig {
+	var cfgs []filters.FilterConfig
+	img := opts.Image
+	if img.Crop.Enabled {
+		cfgs = append(cfgs, filters.FilterConfig{
+			Name: "auto_crop",
+			Params: map[string]any{
+				"left":   img.Crop.Left,
+				"up":     img.Crop.Up,
+				"right":  img.Crop.Right,
+				"bottom": img.Crop.Bottom,
+			},
+		})
+	}
+	if img.AutoContrast {
+		cfgs = append(cfgs, filters.FilterConfig{Name: "auto_contrast"})
+	}
+	if img.Contrast != 0 {
+		cfgs = append(cfgs, filters.FilterConfig{
+			Name:   "contrast",
+			Params: map[string]any{"amount": float64(img.Contrast) / 100.0},
+		})
+	}
+	if img.Brightness != 0 {
+		cfgs = append(cfgs, filters.FilterConfig{
+			Name:   "brightness",
+			Params: map[string]any{"amount": float64(img.Brightness) / 100.0},
+		})
+	}
+	if img.Resize && img.View.Width > 0 && img.View.Height > 0 {
+		cfgs = append(cfgs, filters.FilterConfig{
+			Name: "resize",
+			Params: map[string]any{
+				"width":  img.View.Width,
+				"height": img.View.Height,
+			},
+		})
+	}
+	if img.GrayScale {
+		cfgs = append(cfgs, filters.FilterConfig{Name: "grayscale"})
+	}
+	return cfgs
 }

@@ -1,3 +1,6 @@
+// Package server provides an HTTP server mode for comic conversion.
+// It exposes REST API endpoints for submitting, monitoring, and
+// configuring conversions.
 package server
 
 import (
@@ -15,6 +18,7 @@ type Job struct {
 	Progress  chan string
 	Result    error
 	CreatedAt time.Time
+	Cleanup   func() // called after job completes, may be nil
 
 	doneCh chan struct{}
 	sem    chan struct{} // nil for queued jobs, non-nil for processing
@@ -94,4 +98,30 @@ func (q *JobQueue) Get(id string) (*Job, bool) {
 		return nil, false
 	}
 	return v.(*Job), true
+}
+
+// NextPending returns the first queued job and atomically marks it as "processing".
+// Returns nil if no queued job is found.
+func (q *JobQueue) NextPending() *Job {
+	var found *Job
+	q.jobs.Range(func(key, value any) bool {
+		job := value.(*Job)
+		job.mu.Lock()
+		if job.Status == "queued" {
+			job.Status = "processing"
+			found = job
+		}
+		job.mu.Unlock()
+		return found == nil // stop iterating once found
+	})
+	return found
+}
+
+// SendProgress sends a progress message to the job's Progress channel without blocking.
+// If the channel is full, the message is dropped.
+func (j *Job) SendProgress(msg string) {
+	select {
+	case j.Progress <- msg:
+	default:
+	}
 }

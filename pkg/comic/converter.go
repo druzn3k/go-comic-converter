@@ -14,6 +14,7 @@ import (
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimagepassthrough"
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubzip"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/output"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/filters"
 )
 
 // ErrImageCorrupted is returned by Convert() when some images had errors
@@ -22,10 +23,11 @@ var ErrImageCorrupted = errors.New("one or more images are corrupted")
 
 // Converter is the primary conversion engine.
 // It orchestrates source loading, image processing, and output writing
-// for non-EPUB formats (KEPUB, CBZ, HTML). EPUB output uses pkg/epub.
 type Converter struct {
-	opts Options
-	proc epubimageprocessor.EPUBImageProcessor
+	opts             Options
+	proc             epubimageprocessor.EPUBImageProcessor
+	chain            *filters.Chain
+	ProgressCallback func(string) // called with milestone strings during conversion
 }
 
 // New creates a Converter with the given options.
@@ -39,14 +41,38 @@ func New(opts Options) *Converter {
 	return &Converter{opts: opts, proc: proc}
 }
 
+// NewWithRecipe creates a Converter with a filter recipe chain.
+func NewWithRecipe(opts Options, chain *filters.Chain) *Converter {
+	c := New(opts)
+	c.SetRecipe(chain)
+	return c
+}
+
+// SetRecipe sets the filter chain for recipe-based processing.
+// When nil, the default processing chain is used.
+func (c *Converter) SetRecipe(chain *filters.Chain) {
+	c.chain = chain
+	if p, ok := c.proc.(interface{ SetRecipe(*filters.Chain) }); ok {
+		p.SetRecipe(chain)
+	}
+}
+
 // Convert runs the full pipeline: load → process → output.
 // It dispatches to the registered OutputWriter for the configured format.
 // EPUB output is handled by pkg/epub; use comic.New().Convert() for
 // "kepub", "cbz", "html", or "all".
 func (c *Converter) Convert(ctx context.Context) error {
+	if c.ProgressCallback != nil {
+		c.ProgressCallback("loading")
+	}
+
 	parts, imgStorage, err := GetParts(ctx, c.proc, c.opts)
 	if err != nil {
 		return err
+	}
+
+	if c.ProgressCallback != nil {
+		c.ProgressCallback("processing")
 	}
 
 	if c.opts.Dry {
@@ -63,7 +89,11 @@ func (c *Converter) Convert(ctx context.Context) error {
 	}
 
 	if format == "all" {
-		return c.writeAll(ctx, parts, imgStorage)
+		err := c.writeAll(ctx, parts, imgStorage)
+		if c.ProgressCallback != nil {
+			c.ProgressCallback("completed")
+		}
+		return err
 	}
 
 	outputParts := c.buildOutputParts(parts)
@@ -72,6 +102,10 @@ func (c *Converter) Convert(ctx context.Context) error {
 		return fmt.Errorf("unknown output format: %s", format)
 	}
 	_, err = writer.Write(ctx, outputParts, c.opts)
+
+	if c.ProgressCallback != nil {
+		c.ProgressCallback("completed")
+	}
 
 	if hasCorruptedImages(parts) && err == nil {
 		err = ErrImageCorrupted
@@ -107,6 +141,11 @@ func (c *Converter) buildOutputParts(parts []Part) []output.OutputPart {
 		Title:       c.opts.Title,
 		Author:      c.opts.Author,
 		Publisher:   "GO Comic Converter",
+		Series:      c.opts.Series,
+		Number:      c.opts.Number,
+		Summary:     c.opts.Summary,
+		Genre:       c.opts.Genre,
+		Manga:       map[bool]string{false: "No", true: "Yes"}[c.opts.Manga],
 		UID:         u.String(),
 		UpdatedAt:   time.Now().UTC().Format(time.RFC3339),
 		ImageConfig: c.opts.Image,

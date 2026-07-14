@@ -10,7 +10,7 @@ import (
 )
 
 func TestHealthEndpoint(t *testing.T) {
-	s := New(Config{MaxConcurrent: 2})
+	s := New(context.Background(), Config{MaxConcurrent: 2})
 	req := httptest.NewRequest("GET", "/api/health", nil)
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
@@ -29,7 +29,7 @@ func TestHealthEndpoint(t *testing.T) {
 }
 
 func TestProfilesEndpoint(t *testing.T) {
-	s := New(Config{MaxConcurrent: 2})
+	s := New(context.Background(), Config{MaxConcurrent: 2})
 	req := httptest.NewRequest("GET", "/api/profiles", nil)
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
@@ -60,7 +60,7 @@ func TestProfilesEndpoint(t *testing.T) {
 }
 
 func TestNewServerConfig(t *testing.T) {
-	s := New(Config{
+	s := New(context.Background(), Config{
 		Addr:          ":8080",
 		MaxConcurrent: 3,
 	})
@@ -73,7 +73,7 @@ func TestNewServerConfig(t *testing.T) {
 }
 
 func TestServerStartShutdown(t *testing.T) {
-	s := New(Config{Addr: ":0", MaxConcurrent: 1})
+	s := New(context.Background(), Config{Addr: ":0", MaxConcurrent: 1})
 
 	// Initialize server before starting
 	s.server = &http.Server{

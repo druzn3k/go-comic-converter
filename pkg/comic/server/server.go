@@ -2,6 +2,7 @@
 // It exposes REST API endpoints for submitting, monitoring, and
 // configuring conversions.
 package server
+
 import (
 	"context"
 	"encoding/json"
@@ -9,6 +10,8 @@ import (
 	"time"
 
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/converter"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/epub"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 )
 
 // Config holds server configuration.
@@ -25,16 +28,25 @@ type Server struct {
 	queue  *JobQueue
 	server *http.Server
 	mux    *http.ServeMux
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
-// New creates a new Server with the given config.
-func New(cfg Config) *Server {
+// New creates a new Server with the given config and parent context.
+// It launches MaxConcurrent worker goroutines to process queued jobs.
+func New(ctx context.Context, cfg Config) *Server {
+	ctx, cancel := context.WithCancel(ctx)
 	s := &Server{
-		cfg:   cfg,
-		queue: NewJobQueue(cfg.MaxConcurrent),
-		mux:   http.NewServeMux(),
+		cfg:    cfg,
+		queue:  NewJobQueue(cfg.MaxConcurrent),
+		mux:    http.NewServeMux(),
+		ctx:    ctx,
+		cancel: cancel,
 	}
 	s.routes()
+	for i := 0; i < cfg.MaxConcurrent; i++ {
+		go s.runWorker(ctx)
+	}
 	return s
 }
 
@@ -54,9 +66,41 @@ func (s *Server) Start(ctx context.Context) error {
 	return s.server.ListenAndServe()
 }
 
-// Shutdown gracefully stops the server.
+// Shutdown gracefully stops the server and cancels worker goroutines.
 func (s *Server) Shutdown(ctx context.Context) error {
+	if s.cancel != nil {
+		s.cancel()
+	}
 	return s.server.Shutdown(ctx)
+}
+
+// runWorker processes queued jobs, acquiring a concurrency slot from the queue.
+func (s *Server) runWorker(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case s.queue.sem <- struct{}{}:
+		}
+
+		job := s.queue.NextPending()
+		if job == nil {
+			<-s.queue.sem
+			continue
+		}
+
+		job.SendProgress("processing")
+
+		opts := epuboptions.EPUBOptions{Input: job.Opts}
+		// EPUB conversion handles the full pipeline
+		err := epub.New(opts).Write(ctx)
+
+		if job.Cleanup != nil {
+			job.Cleanup()
+		}
+		job.Done(err)
+		<-s.queue.sem
+	}
 }
 
 // handleHealth returns the server health status.

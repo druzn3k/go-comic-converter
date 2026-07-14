@@ -27,10 +27,17 @@ type EPUBImageProcessor interface {
 
 type ePUBImageProcessor struct {
 	epuboptions.EPUBOptions
+	chain *filters.Chain
 }
 
 func New(o epuboptions.EPUBOptions) EPUBImageProcessor {
-	return ePUBImageProcessor{o}
+	return &ePUBImageProcessor{EPUBOptions: o}
+}
+
+// SetRecipe sets the filter chain for recipe-based processing.
+// When nil, the default processing chain is used.
+func (e *ePUBImageProcessor) SetRecipe(chain *filters.Chain) {
+	e.chain = chain
 }
 
 // Load extract and convert images
@@ -98,11 +105,14 @@ func (e ePUBImageProcessor) Load(ctx context.Context) (images []epubimage.EPUBIm
 				default:
 				}
 
-				img := e.transformImage(input, 0, e.Image.Manga)
+				imgs := e.transformImage(input, 0, e.Image.Manga)
 
-				// do not keep double page if requested
-				if !(img.DoublePage && input.Id > 0 &&
-					e.EPUBOptions.Image.AutoSplitDoublePage && !e.EPUBOptions.Image.KeepDoublePageIfSplit) {
+				for _, img := range imgs {
+					// do not keep double page if requested (only for default chain)
+					if e.chain == nil && img.DoublePage && input.Id > 0 &&
+						e.EPUBOptions.Image.AutoSplitDoublePage && !e.EPUBOptions.Image.KeepDoublePageIfSplit {
+						continue
+					}
 					if stErr := imgStorage.Add(img.EPUBImgPath(), img.Raw, e.Image.Quality); stErr != nil {
 						select {
 						case errc <- fmt.Errorf("error with %s: %w", input.Name, stErr):
@@ -121,27 +131,35 @@ func (e ePUBImageProcessor) Load(ctx context.Context) (images []epubimage.EPUBIm
 					}
 				}
 
-				// DOUBLE PAGE
-				if !e.Image.AutoSplitDoublePage || // No split required
-					!img.DoublePage || // Not a double page
-					(e.Image.HasCover && img.Id == 0) { // Cover
+				// DOUBLE PAGE — only for default chain (recipe chain handles splits internally)
+				if e.chain != nil || !e.Image.AutoSplitDoublePage {
+					continue
+				}
+				// Use the first image from imgs to check double-page status
+				if len(imgs) == 0 {
+					continue
+				}
+				firstImg := imgs[0]
+				if !firstImg.DoublePage || (e.Image.HasCover && input.Id == 0) {
 					continue
 				}
 
 				for i, b := range []bool{e.Image.Manga, !e.Image.Manga} {
-					img = e.transformImage(input, i+1, b)
-					if stErr := imgStorage.Add(img.EPUBImgPath(), img.Raw, e.Image.Quality); stErr != nil {
-						select {
-						case errc <- fmt.Errorf("error with %s: %w", input.Name, stErr):
-						default:
+					splitImgs := e.transformImage(input, i+1, b)
+					for _, img := range splitImgs {
+						if stErr := imgStorage.Add(img.EPUBImgPath(), img.Raw, e.Image.Quality); stErr != nil {
+							select {
+							case errc <- fmt.Errorf("error with %s: %w", input.Name, stErr):
+							default:
+							}
+							return
 						}
-						return
-					}
-					img.Raw = nil
-					select {
-					case imageOutput <- img:
-					case <-ctx.Done():
-						return
+						img.Raw = nil
+						select {
+						case imageOutput <- img:
+						case <-ctx.Done():
+							return
+						}
 					}
 				}
 			}
@@ -225,11 +243,41 @@ func (e ePUBImageProcessor) createImage(src image.Image, r image.Rectangle) draw
 	}
 }
 
-// transform image into 1 or 3 images
-// only doublepage with autosplit has 3 versions
-func (e ePUBImageProcessor) transformImage(input epubimageloader.Task, part int, right bool) epubimage.EPUBImage {
+// transformImage processes a single input image into one or more output images.
+// When a recipe chain is set, it uses the chain; otherwise falls back to DefaultChain.
+func (e ePUBImageProcessor) transformImage(input epubimageloader.Task, part int, right bool) []epubimage.EPUBImage {
 	src := input.Image
 	srcBounds := src.Bounds()
+
+	if e.chain != nil {
+		fctx := filters.FilterContext{
+			Part:           part,
+			Right:          right,
+			ImageOptions:   e.Image,
+			OriginalBounds: srcBounds,
+		}
+		results := e.chain.Apply(context.Background(), src, fctx)
+		var images []epubimage.EPUBImage
+		for i, img := range results {
+			dst := e.createImage(img, img.Bounds())
+			draw.Draw(dst, img.Bounds(), img, image.Point{}, draw.Src)
+			images = append(images, epubimage.EPUBImage{
+				Id:                  input.Id,
+				Part:                part + i,
+				Raw:                 dst,
+				Width:               dst.Bounds().Dx(),
+				Height:              dst.Bounds().Dy(),
+				IsBlank:             dst.Bounds().Dx() == 1 && dst.Bounds().Dy() == 1,
+				DoublePage:          i == 0 && srcBounds.Dx() > srcBounds.Dy() && img.Bounds().Dx() > img.Bounds().Dy(),
+				Path:                input.Path,
+				Name:                input.Name,
+				Format:              e.Image.Format,
+				OriginalAspectRatio: float64(src.Bounds().Dy()) / float64(src.Bounds().Dx()),
+				Error:               input.Error,
+			})
+		}
+		return images
+	}
 
 	g, dstBounds, isDoublePage := filters.DefaultChain(src, filters.DefaultChainOpts{
 		Image:                     e.Image,
@@ -243,7 +291,7 @@ func (e ePUBImageProcessor) transformImage(input epubimageloader.Task, part int,
 	dst := e.createImage(src, dstBounds)
 	g.Draw(dst, src)
 
-	return epubimage.EPUBImage{
+	return []epubimage.EPUBImage{{
 		Id:                  input.Id,
 		Part:                part,
 		Raw:                 dst,
@@ -256,7 +304,7 @@ func (e ePUBImageProcessor) transformImage(input epubimageloader.Task, part int,
 		Format:              e.Image.Format,
 		OriginalAspectRatio: float64(src.Bounds().Dy()) / float64(src.Bounds().Dx()),
 		Error:               input.Error,
-	}
+	}}
 }
 
 type CoverTitleDataOptions struct {

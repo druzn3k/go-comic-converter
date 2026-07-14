@@ -106,6 +106,22 @@ func (w CBZWriter) writeCBZ(outputPath string, part OutputPart, imgStorage epubz
 		return entries[i].ID < entries[j].ID
 	})
 
+	// Write ComicInfo.xml as first entry if metadata is present.
+	if part.Metadata.Title != "" || part.Metadata.Series != "" {
+		comicInfoData, err := MarshalComicInfo(part.Metadata, len(entries))
+		if err != nil {
+			return err
+		}
+		w, err := zw.Create("ComicInfo.xml")
+		if err != nil {
+			return err
+		}
+		_, err = w.Write(comicInfoData)
+		if err != nil {
+			return err
+		}
+	}
+
 	for _, entry := range entries {
 		zf := imgStorage.Get(entry.EPUBPath)
 		if zf == nil {

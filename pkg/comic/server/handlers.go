@@ -70,7 +70,6 @@ func (s *Server) handleConvertMultipart(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, `{"error":"server error"}`, http.StatusInternalServerError)
 		return
 	}
-	defer os.RemoveAll(tmpDir)
 
 	tmpPath := filepath.Join(tmpDir, header.Filename)
 	dst, err := os.Create(tmpPath)
@@ -91,6 +90,8 @@ func (s *Server) handleConvertMultipart(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
 		return
 	}
+	// Cleanup runs after the worker finishes processing the job
+	job.Cleanup = func() { os.RemoveAll(tmpDir) }
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)

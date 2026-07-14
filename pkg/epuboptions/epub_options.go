@@ -8,6 +8,13 @@ type EPUBOptions struct {
 	Author string `yaml:"-" json:"author"`
 	Title  string `yaml:"-" json:"title"`
 
+	// Metadata for ComicInfo.xml
+	Series  string `yaml:"-" json:"series"`
+	Number  string `yaml:"-" json:"number"`
+	Summary string `yaml:"-" json:"summary"`
+	Genre   string `yaml:"-" json:"genre"`
+	Manga   bool   `yaml:"-" json:"manga"`
+
 	//Config
 	TitlePage                  int   `yaml:"title_page" json:"title_page"`
 	LimitMb                    int   `yaml:"limit_mb" json:"limit_mb"`

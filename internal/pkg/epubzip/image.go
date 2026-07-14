@@ -10,6 +10,8 @@ import (
 	"image/jpeg"
 	"image/png"
 	"time"
+
+	"github.com/deepteams/webp"
 )
 
 type Image struct {
@@ -29,6 +31,8 @@ func CompressImage(filename string, format string, img image.Image, quality int)
 		err = png.Encode(&data, img)
 	case "jpeg":
 		err = jpeg.Encode(&data, img, &jpeg.Options{Quality: quality})
+	case "webp":
+		err = webp.Encode(&data, img, &webp.Options{Quality: float32(quality)})
 	default:
 		err = fmt.Errorf("unknown format %q", format)
 	}
