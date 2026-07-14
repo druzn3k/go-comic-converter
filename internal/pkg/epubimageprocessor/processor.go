@@ -16,6 +16,7 @@ import (
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimagefilters"
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubprogress"
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubzip"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/filters"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 )
 
@@ -227,92 +228,19 @@ func (e ePUBImageProcessor) createImage(src image.Image, r image.Rectangle) draw
 // transform image into 1 or 3 images
 // only doublepage with autosplit has 3 versions
 func (e ePUBImageProcessor) transformImage(input epubimageloader.Task, part int, right bool) epubimage.EPUBImage {
-	g := gift.New()
 	src := input.Image
 	srcBounds := src.Bounds()
 
-	// In portrait only, we don't need to keep aspect ratio between each split.
-	// We first cut, the crop.
-	if part > 0 && !e.Image.KeepSplitDoublePageAspect {
-		g.Add(epubimagefilters.CropSplitDoublePage(right))
-	}
+	g, dstBounds, isDoublePage := filters.DefaultChain(src, filters.DefaultChainOpts{
+		Image:                     e.Image,
+		Part:                      part,
+		Right:                     right,
+		SrcBounds:                 srcBounds,
+		CurrentBounds:             srcBounds,
+		KeepSplitDoublePageAspect: e.Image.KeepSplitDoublePageAspect,
+	})
 
-	// Lookup for margin if crop is enable or if we want to remove blank image
-	if e.Image.Crop.Enabled || e.Image.NoBlankImage {
-		f := epubimagefilters.AutoCrop(
-			src,
-			g.Bounds(src.Bounds()),
-			e.Image.Crop.Left,
-			e.Image.Crop.Up,
-			e.Image.Crop.Right,
-			e.Image.Crop.Bottom,
-			e.Image.Crop.Limit,
-			e.Image.Crop.SkipIfLimitReached,
-		)
-
-		// detect if blank image
-		size := f.Bounds(srcBounds)
-		isBlank := size.Dx() == 0 && size.Dy() == 0
-
-		// crop is enable or if blank image with noblankimage options
-		if e.Image.Crop.Enabled || (e.Image.NoBlankImage && isBlank) {
-			g.Add(f)
-		}
-	}
-
-	// With landscape support, we need to keep aspect ratio between each split
-	// We first crop, then cut
-	if part > 0 && e.Image.KeepSplitDoublePageAspect {
-		g.Add(epubimagefilters.CropSplitDoublePage(right))
-	}
-
-	dstBounds := g.Bounds(src.Bounds())
-	// Original && Cropped version need to landscape oriented
-	// Only part 0 can be a double page
-	isDoublePage := part == 0 && srcBounds.Dx() > srcBounds.Dy() && dstBounds.Dx() > dstBounds.Dy()
-
-	if e.Image.AutoRotate && isDoublePage {
-		g.Add(gift.Rotate90())
-	}
-
-	if e.Image.AutoContrast {
-		g.Add(epubimagefilters.AutoContrast())
-	}
-
-	if e.Image.Contrast != 0 {
-		g.Add(gift.Contrast(float32(e.Image.Contrast)))
-	}
-
-	if e.Image.Brightness != 0 {
-		g.Add(gift.Brightness(float32(e.Image.Brightness)))
-	}
-
-	if e.Image.Resize {
-		g.Add(gift.ResizeToFit(e.Image.View.Width, e.Image.View.Height, gift.LanczosResampling))
-	}
-
-	if e.Image.GrayScale {
-		var f gift.Filter
-		switch e.Image.GrayScaleMode {
-		case 1: // average
-			f = gift.ColorFunc(func(r0, g0, b0, a0 float32) (r float32, g float32, b float32, a float32) {
-				y := (r0 + g0 + b0) / 3
-				return y, y, y, a0
-			})
-		case 2: // luminance
-			f = gift.ColorFunc(func(r0, g0, b0, a0 float32) (r float32, g float32, b float32, a float32) {
-				y := 0.2126*r0 + 0.7152*g0 + 0.0722*b0
-				return y, y, y, a0
-			})
-		default:
-			f = gift.Grayscale()
-		}
-		g.Add(f)
-	}
-
-	g.Add(epubimagefilters.Pixel())
-
-	dst := e.createImage(src, g.Bounds(src.Bounds()))
+	dst := e.createImage(src, dstBounds)
 	g.Draw(dst, src)
 
 	return epubimage.EPUBImage{
@@ -329,7 +257,6 @@ func (e ePUBImageProcessor) transformImage(input epubimageloader.Task, part int,
 		OriginalAspectRatio: float64(src.Bounds().Dy()) / float64(src.Bounds().Dx()),
 		Error:               input.Error,
 	}
-
 }
 
 type CoverTitleDataOptions struct {
