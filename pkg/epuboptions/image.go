@@ -15,7 +15,7 @@ type Image struct {
 	HasCover                  bool   `yaml:"has_cover" json:"has_cover"`
 	View                      View   `yaml:"view" json:"view"`
 	GrayScale                 bool   `yaml:"grayscale" json:"grayscale"`
-	GrayScaleMode             int    `yaml:"grayscale_mode" json:"gray_scale_mode"` // 0 = normal, 1 = average, 2 = luminance
+	GrayScaleMode             int    `yaml:"grayscale_mode" json:"grayscale_mode"` // 0 = normal, 1 = average, 2 = luminance
 	Resize                    bool   `yaml:"resize" json:"resize"`
 	Format                    string `yaml:"format" json:"format"`
 	AppleBookCompatibility    bool   `yaml:"apple_book_compatibility" json:"apple_book_compatibility"`

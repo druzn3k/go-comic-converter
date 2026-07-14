@@ -31,6 +31,11 @@ func Toc(title string, hasTitle bool, stripFirstDirectoryFromToc bool, images []
 	ol := etree.NewElement("ol")
 	paths := map[string]*etree.Element{".": ol}
 	for _, img := range images {
+		if img.Path == "" {
+			// PDF sources have empty paths — add directly to root
+			addEntry(ol, img)
+			continue
+		}
 		currentPath := "."
 		for _, path := range strings.Split(img.Path, string(filepath.Separator)) {
 			parentPath := currentPath
@@ -71,4 +76,12 @@ func Toc(title string, hasTitle bool, stripFirstDirectoryFromToc bool, images []
 	doc.Indent(2)
 	r, _ := doc.WriteToString()
 	return r
+}
+
+// addEntry adds a leaf TOC entry for an image directly under the given <ol>.
+func addEntry(ol *etree.Element, img epubimage.EPUBImage) {
+	li := ol.CreateElement("li")
+	link := li.CreateElement("a")
+	link.CreateAttr("href", img.PagePath())
+	link.CreateText(img.Name)
 }

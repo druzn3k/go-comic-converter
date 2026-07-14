@@ -32,7 +32,7 @@ type tag struct {
 
 // Get create the content file
 //
-//goland:noinspection HttpUrlsUsage,HttpUrlsUsage,HttpUrlsUsage,HttpUrlsUsage
+//goland:noinspection HttpUrlsUsage
 func (o Content) String() string {
 	doc := etree.NewDocument()
 	doc.CreateProcInst("xml", `version="1.0" encoding="UTF-8"`)
@@ -103,7 +103,7 @@ func (o Content) getMeta() []tag {
 		{"dc:language", tagAttrs{}, "en"},
 		{"dc:creator", tagAttrs{}, o.Author},
 		{"dc:publisher", tagAttrs{}, o.Publisher},
-		{"dc:contributor", tagAttrs{}, "Go Comic Convertor"},
+		{"dc:contributor", tagAttrs{}, "Go Comic Converter"},
 		{"dc:date", tagAttrs{}, o.UpdatedAt},
 	}
 

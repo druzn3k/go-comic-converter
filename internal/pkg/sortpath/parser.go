@@ -10,7 +10,7 @@ import (
 // Strings follow with numbers like: s1, s1.2, s2-3, ...
 // Does not match leading-dot numbers (e.g. ".5") — handled as a
 // fallback in parsePart. Also does not handle negative numbers.
-var splitPathRegex = regexp.MustCompile(`^(.*?)(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?$`)
+var splitPathRegex = regexp.MustCompile(`^(.*?)(\d+(?:\.\d+)?)(?:-\d+(?:\.\d+)?)?$`)
 
 type part struct {
 	fullname string

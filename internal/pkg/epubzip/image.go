@@ -40,7 +40,7 @@ func CompressImage(filename string, format string, img image.Image, quality int)
 		return Image{}, err
 	}
 
-	wcdata, err := flate.NewWriter(&cdata, flate.BestCompression)
+	wcdata, err := flate.NewWriter(&cdata, flate.BestSpeed)
 	if err != nil {
 		return Image{}, err
 	}
@@ -56,7 +56,6 @@ func CompressImage(filename string, format string, img image.Image, quality int)
 	}
 
 	t := time.Now()
-	//goland:noinspection GoDeprecation
 	return Image{
 		&zip.FileHeader{
 			Name:               filename,
@@ -64,8 +63,7 @@ func CompressImage(filename string, format string, img image.Image, quality int)
 			UncompressedSize64: uint64(data.Len()),
 			CRC32:              crc32.Checksum(data.Bytes(), crc32.IEEETable),
 			Method:             zip.Deflate,
-			ModifiedTime:       uint16(t.Second()/2 + t.Minute()<<5 + t.Hour()<<11),
-			ModifiedDate:       uint16(t.Day() + int(t.Month())<<5 + (t.Year()-1980)<<9),
+			Modified:           t,
 		},
 		cdata.Bytes(),
 	}, nil
@@ -76,7 +74,7 @@ func CompressRaw(filename string, uncompressedData []byte) (Image, error) {
 		cdata bytes.Buffer
 		err   error
 	)
-	wcdata, err := flate.NewWriter(&cdata, flate.BestCompression)
+	wcdata, err := flate.NewWriter(&cdata, flate.BestSpeed)
 	if err != nil {
 		return Image{}, err
 	}
@@ -92,7 +90,6 @@ func CompressRaw(filename string, uncompressedData []byte) (Image, error) {
 	}
 
 	t := time.Now()
-	//goland:noinspection GoDeprecation
 	return Image{
 		&zip.FileHeader{
 			Name:               filename,
@@ -100,8 +97,7 @@ func CompressRaw(filename string, uncompressedData []byte) (Image, error) {
 			UncompressedSize64: uint64(len(uncompressedData)),
 			CRC32:              crc32.Checksum(uncompressedData, crc32.IEEETable),
 			Method:             zip.Deflate,
-			ModifiedTime:       uint16(t.Second()/2 + t.Minute()<<5 + t.Hour()<<11),
-			ModifiedDate:       uint16(t.Day() + int(t.Month())<<5 + (t.Year()-1980)<<9),
+			Modified:           t,
 		},
 		cdata.Bytes(),
 	}, nil

@@ -20,10 +20,12 @@ func NewStorageImageReader(filename string) (StorageImageReader, error) {
 	}
 	s, err := fh.Stat()
 	if err != nil {
+		fh.Close()
 		return StorageImageReader{}, err
 	}
 	fz, err := zip.NewReader(fh, s.Size())
 	if err != nil {
+		fh.Close()
 		return StorageImageReader{}, err
 	}
 	files := map[string]*zip.File{}

@@ -72,6 +72,11 @@ func version() {
 		utils.Fatalln("failed to fetch current version")
 	}
 
+	utils.Printf("go-comic-converter\n")
+	utils.Printf("  Path             : %s\n", bi.Main.Path)
+	utils.Printf("  Sum              : %s\n", bi.Main.Sum)
+	utils.Printf("  Version          : %s\n\n", bi.Main.Version)
+
 	latestVersion := "unknown"
 	resp, err := http.Get("https://api.github.com/repos/druzn3k/go-comic-converter/tags")
 	if err == nil {
@@ -84,21 +89,11 @@ func version() {
 		}
 	}
 
-	utils.Printf(`go-comic-converter
-  Path             : %s
-  Sum              : %s
-  Version          : %s
-  Available Version: %s
-
-To install the latest version:
-$ go install github.com/druzn3k/go-comic-converter/v3@%s
-`,
-		bi.Main.Path,
-		bi.Main.Sum,
-		bi.Main.Version,
-		latestVersion,
-		latestVersion,
-	)
+	utils.Printf("  Available Version: %s\n", latestVersion)
+	if latestVersion != "unknown" {
+		utils.Printf("\nTo install the latest version:\n")
+		utils.Printf("$ go install %s@%s\n", bi.Main.Path, latestVersion)
+	}
 }
 
 func save(cmd *converter.Converter) {

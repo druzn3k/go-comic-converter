@@ -3,6 +3,7 @@ package epubimagefilters
 import (
 	"image"
 	"image/draw"
+	"sync"
 
 	"github.com/disintegration/gift"
 	// NOTE: github.com/golang/freetype is archived (last commit 2017).
@@ -13,6 +14,21 @@ import (
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/gofont/gomonobold"
 )
+
+var (
+	coverFontOnce sync.Once
+	coverFont     *truetype.Font
+)
+
+func getCoverFont() *truetype.Font {
+	coverFontOnce.Do(func() {
+		f, err := truetype.Parse(gomonobold.TTF)
+		if err == nil {
+			coverFont = f
+		}
+	})
+	return coverFont
+}
 
 // CoverTitle Create a title with the cover image
 func CoverTitle(title string, align string, pctWidth int, pctMargin int, maxFontSize int, borderSize int) gift.Filter {
@@ -43,9 +59,8 @@ func (p coverTitle) Draw(dst draw.Image, src image.Image, _ *gift.Options) {
 	srcWidth, srcHeight := src.Bounds().Dx(), src.Bounds().Dy()
 
 	// Calculate size of title
-	f, err := truetype.Parse(gomonobold.TTF)
-	if err != nil {
-		// fallback - just draw without title text
+	f := getCoverFont()
+	if f == nil {
 		return
 	}
 	var fontSize, textWidth, textHeight int

@@ -247,7 +247,7 @@ func (o *Options) ResetConfig() error {
 
 // SaveConfig save all current settings as default value
 func (o *Options) SaveConfig() error {
-	f, err := os.Create(o.FileName())
+	f, err := os.OpenFile(o.FileName(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}

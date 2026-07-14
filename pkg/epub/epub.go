@@ -3,6 +3,7 @@ package epub
 
 import (
 	"archive/zip"
+	"html"
 	"errors"
 	"fmt"
 	"context"
@@ -220,7 +221,7 @@ func (e epub) writeTitleImage(wz epubzip.EPUBZip, img epubimage.EPUBImage, title
 	if err := wz.WriteContent(
 		"OEBPS/Text/title.xhtml",
 		[]byte(e.render("text", map[string]any{
-			"Title":      title,
+			"Title":      html.EscapeString(title),
 			"ViewPort":   e.Image.View.Port(),
 			"ImagePath":  "Images/title.jpeg",
 			"ImageStyle": img.ImgStyle(e.Image.View.Width, e.Image.View.Height, titleAlign),

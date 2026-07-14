@@ -3,6 +3,7 @@ package converter
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/utils"
@@ -65,8 +66,14 @@ func NewProfiles() Profiles {
 }
 
 func (p Profiles) String() string {
-	s := make([]string, 0)
-	for _, v := range p {
+	codes := make([]string, 0, len(p))
+	for code := range p {
+		codes = append(codes, code)
+	}
+	sort.Strings(codes)
+	s := make([]string, 0, len(p))
+	for _, code := range codes {
+		v := p[code]
 		s = append(s, fmt.Sprintf(
 			"    - %-7s - %4d x %-4d - %s",
 			v.Code,

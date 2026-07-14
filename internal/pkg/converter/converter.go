@@ -23,7 +23,7 @@ import (
 )
 
 // hexColorRe validates hexadecimal color codes (RGB format).
-var hexColorRe = regexp.MustCompile("^[0-9A-F]{3}$")
+var hexColorRe = regexp.MustCompile("^(?i)[0-9A-F]{3}$")
 
 type Converter struct {
 	Options *Options
