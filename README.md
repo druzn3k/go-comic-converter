@@ -1,16 +1,26 @@
 # go-comic-converter
 
+**Go version:** 1.26  
+**Module:** `github.com/druzn3k/go-comic-converter/v3`  
+**Test coverage:** 55.7%
+
 Convert CBZ/CBR/Dir/PDF into EPUB, KEPUB, CBZ, or HTML for e-reader devices (Kindle, Kobo, reMarkable, ...)
 
 My goal is to make a simple, cross-platform, and fast tool to convert comics into EPUB, KEPUB, CBZ, or HTML.
 
 EPUB is supported by Amazon through [SendToKindle](https://www.amazon.com/gp/sendtokindle/), by Email or by using the App. I've made it simple to support the size limit constraint of those services. KEPUB output adds Kobo panel zoom support, CBZ output targets comic server apps, and HTML produces a self-contained browser viewer.
 
-# Features
+## Features
 - Support input from zip, cbz, rar, cbr, pdf, directory
-- Support all Kindle devices and kobo
+- Support all Kindle devices and Kobo
 - Support multiple output formats: EPUB, KEPUB (Kobo enhanced), CBZ, HTML
 - Automatic KEPUB output for Kobo device profiles
+- **Output image formats**: JPEG, PNG, **WebP**
+- **Filter recipe system**: YAML-defined processing pipelines via `-recipe`
+- **HTTP server mode**: REST API with job queue, SSE progress, multipart upload
+- **Watch mode**: auto-convert files added to a directory
+- **Batch mode**: glob-pattern bulk conversion
+- **ComicInfo.xml**: metadata embedded in CBZ output for Komga/Kavita
 - Support Landscape and Portrait mode
 - Customize output image quality
 - Intelligent cropping (support removing even page numbers)
@@ -59,7 +69,8 @@ comic reader apps like Komga, Kavita, or Panelity.
 Self-contained HTML viewer with all images embedded as base64 data URIs and a vanilla JS
 page-flip navigation. No server required — open the HTML file directly in a browser.
 Perfect for quick previews or sharing.
-
+The tool supports four output formats, selected via the `-output-format` flag.
+Output image format (inside EPUB/KEPUB/CBZ) can be JPEG, PNG, or **WebP** via `-format`.
 To select an output format:
 ```
 $ go-comic-converter -profile SR -input ~/Download/MyComic -output-format html
@@ -653,8 +664,7 @@ Config:
   -resize (default true)
     	Reduce image size if exceed device size
   -format string (default "jpeg")
-    	Format of output images: jpeg (lossy), png (lossless), copy (no processing)
-  -aspect-ratio float
+    	Format of output images: jpeg (lossy), png (lossless), webp (lossy), copy (no processing)
     	Aspect ratio (height/width) of the output
     	 -1 = same as device
     	  0 = same as source
@@ -726,12 +736,15 @@ This project is largely inspired from KCC (Kindle Comic Converter). Thanks:
 Thanks for UI contribution:
  - [manueldidonna / Comic2Books](https://github.com/manueldidonna/comic2books)
 
-# Next Features
+## Next Features
 
-See [NEXT_PLAN.md](NEXT_PLAN.md) for the detailed implementation plan covering:
+See [PLAN.md](PLAN.md) for the latest development plan.
 
-1. **Wire recipe system** — connect `-recipe`/`-recipe-show`/`-recipe-save` to the conversion pipeline
-2. **HTTP server workers** — wire worker goroutines so `POST /api/convert` actually runs conversions
-3. **ComicInfo.xml** — add metadata XML to CBZ output for Komga/Kavita compatibility
-4. **WebP output** — add WebP as an image encoding option (alongside JPEG/PNG)
-5. **Watch debouncing** — prevent duplicate conversions from fsnotify multiple events
+Previous milestones (all completed):
+- WebP output format
+- HTTP server mode with REST API + SSE progress
+- Watch mode with debouncing and temp-file filtering
+- Filter recipe system (YAML-defined processing pipelines)
+- ComicInfo.xml metadata for CBZ output
+- Test coverage raised from 26.5% to 55.7%
+- Go toolchain updated to 1.26

@@ -1,8 +1,7 @@
 # AGENT.md — go-comic-converter
 
 ## Project Overview
-
-**go-comic-converter** (v3) converts CBZ/CBR/Directory/PDF sources into EPUB files optimized for e-readers (Kindle, Kobo, reMarkable). A single CLI binary written in Go 1.23.
+**go-comic-converter** (v3) converts CBZ/CBR/Directory/PDF sources into EPUB files optimized for e-readers (Kindle, Kobo, reMarkable). A single CLI binary written in Go 1.26.
 
 Module: `github.com/druzn3k/go-comic-converter/v3`  
 Entry: `main.go` → CLI flag parsing → `epub.New(options).Write()`  
@@ -12,14 +11,30 @@ Config: `~/.go-comic-converter.yaml` (YAML, saved/loaded via `go-flags`-like cus
 
 ```
 .
-├── main.go              # CLI entry: parse flags → version/save/show/reset/generate
-├── go.mod               # Module: github.com/druzn3k/go-comic-converter/v3 (Go 1.23)
+├── main.go              # CLI entry: parse flags → dispatch (generate/serve/watch/batch/version/save/show/reset)
+├── go.mod               # Module: github.com/druzn3k/go-comic-converter/v3 (Go 1.26)
 ├── go.sum
-├── README.md            # 602-line README with full docs
-├── LICENSE.txt          # License
-├── .gitignore
+├── README.md
+├── PLAN.md              # Current development plan
+├── LICENSE.txt
+├── Makefile
+├── Dockerfile
+├── .github/workflows/ci.yml
 │
 ├── pkg/                          # Public packages (importable)
+│   ├── comic/                    # Library API for conversion
+│   │   ├── converter.go          # Converter orchestrator, Convert(), GetParts()
+│   │   ├── parts.go              # Part splitting logic
+│   │   ├── batch.go              # Batch processing (glob)
+│   │   ├── watch.go              # Directory watcher with debounce
+│   │   ├── registry.go           # Format registration
+│   │   ├── options.go            # Options alias (re-exports epuboptions)
+│   │   ├── types.go              # Part type
+│   │   ├── source/               # Source readers (CBZ, CBR, dir, PDF)
+│   │   ├── output/               # Output writers (CBZ, KEPUB, HTML)
+│   │   ├── server/               # HTTP server (handlers, jobs, SSE)
+│   │   ├── filters/              # Filter recipe system (Chain, Recipe, builtins)
+│   │   └── viewport/             # Viewport dimension helpers
 │   ├── epub/
 │   │   └── epub.go               # EPUB creation orchestrator
 │   └── epuboptions/              # Options data types
@@ -48,7 +63,7 @@ Config: `~/.go-comic-converter.yaml` (YAML, saved/loaded via `go-flags`-like cus
     │
     ├── epubimageprocessor/       # Full image pipeline (load→process→store)
     │   ├── processor.go          # EPUBImageProcessor interface, transformImage, CoverTitleData
-    │   └── loader.go             # loadDir, loadCbz, loadCbr, loadPdf — source readers
+    │   └── loader.go             # Source dispatching
     │
     ├── epubimagepassthrough/     # No-processing mode (format=copy)
     │   └── passthrough.go        # Passthrough loader for direct copy
@@ -71,7 +86,7 @@ Config: `~/.go-comic-converter.yaml` (YAML, saved/loaded via `go-flags`-like cus
     │
     ├── epubzip/                  # EPUB zip writer & image storage
     │   ├── epub_zip.go           # EPUBZip: write files into a ZIP with EPUB magic
-    │   ├── image.go              # CompressImage, CompressRaw (JPEG/PNG + deflate)
+    │   ├── image.go              # CompressImage, CompressRaw (JPEG/PNG/WebP + deflate)
     │   ├── storage_image_reader.go   # StorageImageReader: read pre-processed images from temp ZIP
     │   └── storage_image_writer.go   # StorageImageWriter: write processed images to temp ZIP
     │
@@ -81,7 +96,7 @@ Config: `~/.go-comic-converter.yaml` (YAML, saved/loaded via `go-flags`-like cus
     │
     └── utils/
         ├── utils.go              # Printf/Fatalf/Println helpers + NumberOfDigits/Format
-        └── utils_test.go         # Example tests for utils
+        └── utils_test.go         # Tests for utils
 ```
 
 ## API Surface
@@ -216,16 +231,18 @@ func FormatNumberOfDigits(i int) string
 | Package | Usage |
 |---|---|
 | `github.com/beevik/etree` v1.5.0 | XML DOM for EPUB content.opf generation |
+| `github.com/deepteams/webp` v1.2.7 | Pure-Go WebP encoding |
 | `github.com/disintegration/gift` v1.2.1 | Image filtering pipeline (crop, resize, color) |
 | `github.com/fogleman/gg` v1.3.0 | 2D rendering for title images |
-| `github.com/gofrs/uuid` v4.4.0 | EPUB unique identifier |
+| `github.com/fsnotify/fsnotify` v1.7.0 | File system notifications (watch mode) |
+| `github.com/gofrs/uuid/v5` v5.0.0 | EPUB unique identifier |
 | `github.com/golang/freetype` | TrueType font rendering for title text |
 | `github.com/nwaples/rardecode/v2` v2.1.0 | RAR/CBR archive reader |
 | `github.com/raff/pdfreader` v0.0.0 | PDF page extraction |
 | `github.com/schollz/progressbar/v3` v3.18.0 | Terminal progress bar |
-| `github.com/tcnksm/go-latest` | GitHub release version check |
 | `golang.org/x/image` v0.24.0 | TIFF/WebP image decoders, Go fonts |
 | `gopkg.in/yaml.v3` v3.0.1 | Config file YAML parsing |
+
 
 ### Indirect
 `google/go-github`, `google/go-querystring`, `hashicorp/go-version`, `mitchellh/colorstring`, `rivo/uniseg`, `golang.org/x/net`, `golang.org/x/sys`, `golang.org/x/term`
@@ -236,37 +253,43 @@ The CLI is structured as a command dispatch pattern:
 
 1. `converter.New()` creates Converter with `flag.FlagSet`
 2. `cmd.LoadConfig()` loads `~/.go-comic-converter.yaml`
-3. `cmd.InitParse()` registers all flags under sections (Output, Config, Default config, Shortcut, Compatibility, Other)
-4. `cmd.Parse()` parses os.Args[1:]
 5. Dispatch by mode flag:
    - `-version` → `version()` (prints build info + latest GitHub release)
+   - `-serve` → `serve()` (starts HTTP server on given address)
+   - `-watch` → `watch()` (monitors directory for new files)
+   - `-batch` → `batch()` (glob-pattern bulk conversion)
    - `-save` → `save(cmd)` (writes current options to config file)
    - `-show` → `show(cmd)` (prints options)
    - `-reset` → `reset(cmd)` (resets config to defaults)
+   - `-recipe-show` → loads/prints recipe chain and exits
+   - `-recipe-save` → serializes current options as recipe YAML
    - default → `generate(cmd)`:
      - `cmd.Validate()` checks inputs
      - Applies profile dimensions if set
-     - Optionally outputs JSON options
-     - Calls `epub.New(cmd.Options.EPUBOptions).Write()`
+     - Loads recipe if `-recipe` specified
+     - Calls `comic.NewWithRecipe(opts, chain).Convert()` for non-EPUB formats
+     - Or `epub.New(opts).Write()` for EPUB output
      - Prints stats on completion
 
 ## Image Processing Pipeline
 
 The core pipeline (in `internal/pkg/epubimageprocessor`):
 
-1. **Load** source: directory, CBZ/ZIP, CBR/RAR, or PDF (`loadDir`/`loadCbz`/`loadCbr`/`loadPdf`)
+1. **Load** source: directory, CBZ/ZIP, CBR/RAR, or PDF via `source.Source` dispatcher
 2. **Sort** files using `sortpath.By` with configurable mode (0=alpha, 1=alphanumeric path, 2=alphanumeric both)
 3. **For each image**, run `transformImage`:
    - Decode image (JPEG, PNG, WebP, TIFF)
    - If corrupted → show warning, use 1x1 white pixel
-   - Auto-rotate (if width > height and enabled)
-   - Auto-split double page (if width >> height)
-   - Crop (margin detection with configurable ratios/limits)
-   - Auto-contrast (histogram-based)
-   - Brightness/contrast adjustment
-   - Grayscale conversion (3 modes: normal/average/luminance)
-   - Resize to device dimensions (if enabled)
-   - Convert to output format (JPEG/PNG)
+   - **If recipe chain is set**: apply user-defined filter pipeline from `-recipe`
+   - **If no recipe**: apply hardcoded default chain:
+     - Auto-rotate (if width > height and enabled)
+     - Auto-split double page (if width >> height)
+     - Crop (margin detection with configurable ratios/limits)
+     - Auto-contrast (histogram-based)
+     - Brightness/contrast adjustment
+     - Grayscale conversion (3 modes: normal/average/luminance)
+     - Resize to device dimensions (if enabled)
+   - Convert to output format (JPEG/PNG/WebP)
    - Compress and store in temp ZIP via `StorageImageWriter`
 4. **Parallel**: uses `runtime.NumCPU()` workers with channel-based fan-out
 
@@ -307,16 +330,47 @@ Managed by: `-show` (print), `-save` (write current as defaults), `-reset` (rest
 
 ## Test Coverage
 
-Currently minimal: only `internal/pkg/utils` has Example-style tests (`utils_test.go`). No unit tests for other packages.
+**Overall: 55.7%** (19 packages with tests, 3 without).
+
+Tests exist for all core packages. Key coverage:
+- `pkg/epuboptions`: 100%
+- `internal/pkg/epubimage`: 100%
+- `internal/pkg/epubtree`: 100%
+- `pkg/comic/viewport`: 100%
+- `internal/pkg/epubimagefilters`: 86.2%
+- `internal/pkg/epubimageloader`: 80.6%
+- `internal/pkg/converter`: 71.0%
+- `internal/pkg/epubimageprocessor`: 66.7%
+- `pkg/comic/server`: 64.9%
+- `pkg/epub`: 60.5%
+- `pkg/comic/filters`: 60.4%
+- `internal/pkg/epubzip`: 50.0%
+
+Packages without tests (low-priority): `epubprogress` (terminal I/O), `epubtemplates` (covered by output), `main.go` (thin dispatch).
+
+### Adding tests
+- Use hand-written test stubs, no mock frameworks
+- Use `image.NewRGBA()` for test images
+- Use `t.TempDir()` for temp files
+- Run `go test -race ./<package>/...` before committing
 
 ## Build
 
 ```
 go build -o go-comic-converter .
-go install github.com/druzn3k/go-comic-converter/v3@latest
+go test ./...
+go vet ./...
+go test -race ./...
 ```
 
-No Makefile, no CI config, no Docker.
+### Docker
+```
+docker build -t go-comic-converter .
+docker run --rm go-comic-converter --help
+```
+
+### CI
+GitHub Actions workflow in `.github/workflows/ci.yml` — runs build + test + vet on push.
 
 ## Key Design Patterns
 
