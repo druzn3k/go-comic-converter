@@ -10,6 +10,23 @@ My goal is to make a simple, cross-platform, and fast tool to convert comics int
 
 EPUB is supported by Amazon through [SendToKindle](https://www.amazon.com/gp/sendtokindle/), by Email or by using the App. I've made it simple to support the size limit constraint of those services. KEPUB output adds Kobo panel zoom support, CBZ output targets comic server apps, and HTML produces a self-contained browser viewer.
 
+
+## WASM Browser App
+
+A browser-based version of go-comic-converter runs entirely in your browser
+via WebAssembly. No server needed — all processing is local.
+
+```
+make wasm        # Build wasm/main.wasm
+make wasm-serve  # Open http://localhost:8080
+```
+
+Open `wasm/index.html` in a browser, drop a CBZ file, adjust options,
+and download the converted EPUB. Supports all output formats (EPUB, KEPUB,
+CBZ, HTML), all filter options, recipe system, and ComicInfo.xml metadata.
+
+See [PLAN.md](PLAN.md) for architecture details and future plans.
+
 ## Features
 - Support input from zip, cbz, rar, cbr, pdf, directory
 - Support all Kindle devices and Kobo

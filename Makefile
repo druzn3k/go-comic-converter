@@ -12,6 +12,24 @@ FUZZ_TARGETS = \
 	FuzzParsePart \
 	FuzzBy
 
+
+# WASM targets
+WASM_DIR     ?= wasm
+WASM_BINARY  ?= $(WASM_DIR)/main.wasm
+
+.PHONY: wasm wasm-serve
+
+wasm: $(WASM_BINARY)
+
+$(WASM_BINARY): cmd/wasm/*.go
+	GOOS=js GOARCH=wasm $(GO) build -o $@ ./cmd/wasm/
+	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" $(WASM_DIR)/wasm_exec.js
+
+wasm-serve: $(WASM_BINARY)
+	@echo "Open http://localhost:8080 in your browser"
+	cd $(WASM_DIR) && python3 -m http.server 8080 2>/dev/null || \
+	  go run main.go -serve :8080 2>/dev/null || \
+	  echo "Install python3 or go, then run: cd wasm && python3 -m http.server 8080"
 .PHONY: all build test vet lint clean cover \
         test-race fuzz fuzz-all clean-testdata
 
