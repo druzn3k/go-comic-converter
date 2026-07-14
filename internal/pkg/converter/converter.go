@@ -166,6 +166,11 @@ func (c *Converter) InitParse() {
 	c.AddBoolParam(&c.Options.Strict, "strict", false, "Abort on first corrupted image instead of continuing with a placeholder")
 	c.AddBoolParam(&c.Options.Version, "version", false, "Show current and available version")
 	c.AddBoolParam(&c.Options.Help, "help", false, "Show this help message")
+
+	c.AddSection("Server")
+	c.AddStringParam(&c.Options.Serve, "serve", "", "Start HTTP server mode (e.g., :8080)")
+	c.AddIntParam(&c.Options.MaxConcurrent, "max-concurrent", 2, "Max concurrent conversions in server mode")
+	c.AddBoolParam(&c.Options.AllowLocalPaths, "allow-local-paths", false, "Allow local file paths as input in server mode")
 }
 
 // Usage Customize version of FlagSet.PrintDefaults

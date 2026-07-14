@@ -19,6 +19,8 @@ import (
 	"runtime/debug"
 	"sort"
 	"syscall"
+	"time"
+
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/converter"
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimageprocessor"
 	"github.com/celogeek/go-comic-converter/v3/internal/pkg/epubimagepassthrough"
@@ -26,6 +28,7 @@ import (
 	"github.com/celogeek/go-comic-converter/v3/pkg/comic/output"
 	"github.com/celogeek/go-comic-converter/v3/pkg/epub"
 	"github.com/celogeek/go-comic-converter/v3/pkg/epuboptions"
+	comicServer "github.com/celogeek/go-comic-converter/v3/pkg/comic/server"
 )
 
 func main() {
@@ -42,6 +45,8 @@ func main() {
 	switch {
 	case cmd.Options.Version:
 		version()
+	case cmd.Options.Serve != "":
+		serve(ctx, cmd)
 	case cmd.Options.Save:
 		save(cmd)
 	case cmd.Options.Show:
@@ -114,6 +119,21 @@ func reset(cmd *converter.Converter) {
 		cmd.Options.ShowConfig(),
 		cmd.Options.FileName(),
 	)
+}
+
+// serve starts the HTTP server mode.
+func serve(ctx context.Context, cmd *converter.Converter) {
+	s := comicServer.New(comicServer.Config{
+		Addr:            cmd.Options.Serve,
+		MaxConcurrent:   cmd.Options.MaxConcurrent,
+		AllowLocalPaths: cmd.Options.AllowLocalPaths,
+		ShutdownTimeout: 30 * time.Second,
+	})
+
+	utils.Printf("Starting server on %s\n", cmd.Options.Serve)
+	if err := s.Start(ctx); err != nil && err != http.ErrServerClosed {
+		utils.Fatalf("Server error: %v\n", err)
+	}
 }
 
 // runSingleFormat dispatches a non-EPUB format through the OutputWriter path.

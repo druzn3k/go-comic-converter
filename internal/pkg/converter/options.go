@@ -35,9 +35,14 @@ type Options struct {
 	GoodQuality  bool `yaml:"-" json:"-"`
 
 	// Other
-	Version      bool   `yaml:"-" json:"-"`
-	Help         bool   `yaml:"-" json:"-"`
-	OutputFormat string `yaml:"-" json:"-"`
+	Version               bool   `yaml:"-" json:"-"`
+	Help                  bool   `yaml:"-" json:"-"`
+	OutputFormat          string `yaml:"-" json:"-"`
+
+	// Server
+	Serve             string `yaml:"-" json:"-"`
+	MaxConcurrent     int    `yaml:"-" json:"-"`
+	AllowLocalPaths   bool   `yaml:"-" json:"-"`
 
 	// Internal
 	profiles Profiles
