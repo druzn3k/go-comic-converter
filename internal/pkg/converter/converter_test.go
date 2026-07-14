@@ -33,7 +33,7 @@ func TestAvailableProfiles(t *testing.T) {
 		t.Fatal("AvailableProfiles() returned empty")
 	}
 	// Should contain key profiles
-	for _, code := range []string{"SR", "HR", "KPW5", "KS"} {
+	for _, code := range []string{"SR", "HR", "KPW5", "KS", "KV", "KO"} {
 		if !contains(s, code) {
 			t.Errorf("AvailableProfiles() missing %q", code)
 		}
@@ -150,4 +150,130 @@ func searchString(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+func TestInitParse(t *testing.T) {
+	c := New()
+	// InitParse should not panic
+	c.InitParse()
+	// Verify key flags are registered
+	if c.Cmd.Lookup("quality") == nil {
+		t.Error("expected 'quality' flag to be registered")
+	}
+	if c.Cmd.Lookup("input") == nil {
+		t.Error("expected 'input' flag to be registered")
+	}
+	if c.Cmd.Lookup("format") == nil {
+		t.Error("expected 'format' flag to be registered")
+	}
+	if c.Cmd.Lookup("profile") == nil {
+		t.Error("expected 'profile' flag to be registered")
+	}
+}
+
+func TestParse(t *testing.T) {
+	c := New()
+	c.InitParse()
+	err := c.Cmd.Parse([]string{"--quality", "90", "--format", "png"})
+	if err != nil {
+		t.Fatalf("parse failed: %v", err)
+	}
+	if c.Options.Image.Quality != 90 {
+		t.Errorf("expected quality=90, got %d", c.Options.Image.Quality)
+	}
+	if c.Options.Image.Format != "png" {
+		t.Errorf("expected format=png, got %q", c.Options.Image.Format)
+	}
+}
+
+func TestParseUnknownFlag(t *testing.T) {
+	c := New()
+	c.InitParse()
+	err := c.Cmd.Parse([]string{"--nonexistent-flag-xyz"})
+	if err == nil {
+		t.Fatal("expected error for unknown flag, got nil")
+	}
+}
+
+func TestShowConfig(t *testing.T) {
+	o := NewOptions()
+	s := o.ShowConfig()
+	if s == "" {
+		t.Fatal("ShowConfig() returned empty string")
+	}
+	if !contains(s, "Profile") {
+		t.Errorf("ShowConfig() should contain 'Profile', got: %s", s)
+	}
+}
+
+func TestGetProfile(t *testing.T) {
+	o := NewOptions()
+	// Default profile is SR
+	p := o.GetProfile()
+	if p == nil {
+		t.Fatal("GetProfile() returned nil for default profile")
+	}
+	if p.Width <= 0 {
+		t.Errorf("expected Width > 0, got %d", p.Width)
+	}
+
+	// Test unknown profile
+	o.Profile = "UNKNOWN"
+	if p := o.GetProfile(); p != nil {
+		t.Errorf("expected nil for UNKNOWN profile, got %v", p)
+	}
+}
+
+func TestLoadConfigMissing(t *testing.T) {
+	// Override HOME to a temp dir where no config file exists
+	t.Setenv("HOME", t.TempDir())
+	o := NewOptions()
+	err := o.LoadConfig()
+	if err != nil {
+		t.Errorf("LoadConfig should return nil when no config file exists, got: %v", err)
+	}
+}
+
+func TestSaveLoadRoundTrip(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	o := NewOptions()
+	o.Profile = "KV"
+	o.Image.Quality = 72
+	o.Image.Format = "png"
+	o.Image.GrayScale = false
+
+	err := o.SaveConfig()
+	if err != nil {
+		t.Fatalf("SaveConfig failed: %v", err)
+	}
+
+	// Load into a fresh Options
+	o2 := NewOptions()
+	err = o2.LoadConfig()
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	if o2.Profile != "KV" {
+		t.Errorf("expected Profile=KV, got %q", o2.Profile)
+	}
+	if o2.Image.Quality != 72 {
+		t.Errorf("expected Quality=72, got %d", o2.Image.Quality)
+	}
+	if o2.Image.Format != "png" {
+		t.Errorf("expected Format=png, got %q", o2.Image.Format)
+	}
+	if o2.Image.GrayScale != false {
+		t.Errorf("expected GrayScale=false, got %v", o2.Image.GrayScale)
+	}
+}
+
+func TestProfilesString(t *testing.T) {
+	p := NewProfiles()
+	s := p.String()
+	if s == "" {
+		t.Fatal("Profiles.String() returned empty string")
+	}
 }

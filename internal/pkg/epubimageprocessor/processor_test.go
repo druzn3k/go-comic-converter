@@ -1,9 +1,10 @@
 package epubimageprocessor
 
 import (
-	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimageloader"
-	"context"
 	"bytes"
+	"context"
+	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -11,6 +12,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimageloader"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/filters"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/source"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 )
 
@@ -147,5 +151,234 @@ func TestLoadDirSkipsSymlinks(t *testing.T) {
 	}
 	if images[0].Name != "real.jpg" {
 		t.Errorf("expected real.jpg, got %s", images[0].Name)
+	}
+}
+
+// ---- Mock source + helpers for processor tests ----
+
+type mockSource struct {
+	tasks []epubimageloader.Task
+	name  string
+}
+
+func (m *mockSource) Load(ctx context.Context) (<-chan epubimageloader.Task, int, error) {
+	ch := make(chan epubimageloader.Task, len(m.tasks))
+	go func() {
+		defer close(ch)
+		for _, t := range m.tasks {
+			select {
+			case ch <- t:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return ch, len(m.tasks), nil
+}
+
+func (m *mockSource) Name() string { return m.name }
+
+func makeTask(id int, w, h int) epubimageloader.Task {
+	return epubimageloader.Task{
+		Id:    id,
+		Path:  "/test",
+		Name:  fmt.Sprintf("page%d.jpg", id),
+		Image: image.NewRGBA(image.Rect(0, 0, w, h)),
+	}
+}
+
+func newTestProcessor(t *testing.T, opts epuboptions.EPUBOptions, src source.Source) *ePUBImageProcessor {
+	t.Helper()
+	if opts.Output == "" {
+		opts.Output = filepath.Join(t.TempDir(), "output")
+	}
+	if opts.Workers == 0 {
+		opts.Workers = 1
+	}
+	p := &ePUBImageProcessor{EPUBOptions: opts}
+	p.SetTestSource(src)
+	return p
+}
+
+func TestLoadSingleImage(t *testing.T) {
+	src := &mockSource{
+		name:  "test-source",
+		tasks: []epubimageloader.Task{makeTask(1, 400, 600)},
+	}
+	opts := epuboptions.EPUBOptions{
+		Image: epuboptions.Image{
+			Format: "jpeg",
+			View:   epuboptions.View{Width: 1200, Height: 1600},
+		},
+	}
+	p := newTestProcessor(t, opts, src)
+	images, err := p.Load(context.Background())
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
+	if len(images) != 1 {
+		t.Fatalf("expected 1 image, got %d", len(images))
+	}
+	if images[0].Id != 1 {
+		t.Errorf("expected Id=1, got %d", images[0].Id)
+	}
+	if images[0].Format != "jpeg" {
+		t.Errorf("expected Format=jpeg, got %s", images[0].Format)
+	}
+}
+
+func TestLoadDoublePageAutoSplit(t *testing.T) {
+	src := &mockSource{
+		name:  "test-source",
+		tasks: []epubimageloader.Task{makeTask(1, 800, 600)},
+	}
+	opts := epuboptions.EPUBOptions{
+		Image: epuboptions.Image{
+			Format:                    "jpeg",
+			AutoSplitDoublePage:       true,
+			KeepDoublePageIfSplit:     true,
+			View:                      epuboptions.View{Width: 1200, Height: 1600},
+		},
+	}
+	p := newTestProcessor(t, opts, src)
+	images, err := p.Load(context.Background())
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
+	// 3 outputs: original double page (part=0) + left split (part=1) + right split (part=2)
+	if len(images) != 3 {
+		t.Fatalf("expected 3 images (original + 2 splits), got %d", len(images))
+	}
+	// Verify part numbering: 0, 1, 2
+	parts := make(map[int]bool)
+	for _, img := range images {
+		parts[img.Part] = true
+	}
+	if !parts[0] || !parts[1] || !parts[2] {
+		t.Errorf("expected parts [0,1,2], got %v", parts)
+	}
+}
+
+func TestLoadDoublePageNoSplit(t *testing.T) {
+	src := &mockSource{
+		name:  "test-source",
+		tasks: []epubimageloader.Task{makeTask(1, 800, 600)},
+	}
+	opts := epuboptions.EPUBOptions{
+		Image: epuboptions.Image{
+			Format:              "jpeg",
+			AutoSplitDoublePage: false,
+			View:                epuboptions.View{Width: 1200, Height: 1600},
+		},
+	}
+	p := newTestProcessor(t, opts, src)
+	images, err := p.Load(context.Background())
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
+	if len(images) != 1 {
+		t.Fatalf("expected 1 image (no split), got %d", len(images))
+	}
+	if images[0].Part != 0 {
+		t.Errorf("expected part=0, got %d", images[0].Part)
+	}
+}
+
+func TestLoadCorruptedImage(t *testing.T) {
+	src := &mockSource{
+		name: "test-source",
+		tasks: []epubimageloader.Task{{
+			Id:    1,
+			Path:  "/test",
+			Name:  "corrupted.jpg",
+			Image: image.NewRGBA(image.Rect(0, 0, 1, 1)),
+			Error: fmt.Errorf("simulated decode error"),
+		}},
+	}
+	opts := epuboptions.EPUBOptions{
+		Image: epuboptions.Image{
+			Format: "jpeg",
+			View:   epuboptions.View{Width: 1200, Height: 1600},
+		},
+	}
+	p := newTestProcessor(t, opts, src)
+	images, err := p.Load(context.Background())
+	if err != nil {
+		t.Fatalf("Load() should not fail on corrupted images: %v", err)
+	}
+	if len(images) != 1 {
+		t.Fatalf("expected 1 image (placeholder), got %d", len(images))
+	}
+	if images[0].Error == nil {
+		t.Error("expected error to be preserved on corrupted image")
+	}
+}
+
+func TestLoadContextCancel(t *testing.T) {
+	src := &mockSource{
+		name:  "test-source",
+		tasks: []epubimageloader.Task{makeTask(1, 400, 600)},
+	}
+	opts := epuboptions.EPUBOptions{
+		Image: epuboptions.Image{
+			Format: "jpeg",
+			View:   epuboptions.View{Width: 1200, Height: 1600},
+		},
+	}
+	p := newTestProcessor(t, opts, src)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel immediately
+
+	_, err := p.Load(ctx)
+	if err == nil {
+		t.Fatal("expected error with cancelled context")
+	}
+}
+
+func TestLoadNoImages(t *testing.T) {
+	src := &mockSource{
+		name:  "test-source",
+		tasks: nil,
+	}
+	opts := epuboptions.EPUBOptions{
+		Image: epuboptions.Image{
+			Format: "jpeg",
+		},
+	}
+	p := newTestProcessor(t, opts, src)
+	_, err := p.Load(context.Background())
+	if err == nil {
+		t.Fatal("expected error for no images")
+	}
+	if !errors.Is(err, epubimageloader.ErrNoImagesFound) {
+		t.Errorf("expected ErrNoImagesFound, got: %v", err)
+	}
+}
+
+func TestSetRecipe(t *testing.T) {
+	src := &mockSource{
+		name:  "test-source",
+		tasks: []epubimageloader.Task{makeTask(1, 400, 600)},
+	}
+	opts := epuboptions.EPUBOptions{
+		Image: epuboptions.Image{
+			Format: "jpeg",
+			View:   epuboptions.View{Width: 1200, Height: 1600},
+		},
+	}
+	p := newTestProcessor(t, opts, src)
+	// An empty chain is the simplest recipe — it returns the image unchanged
+	chain := filters.NewChain()
+	p.SetRecipe(chain)
+
+	images, err := p.Load(context.Background())
+	if err != nil {
+		t.Fatalf("Load() with recipe chain failed: %v", err)
+	}
+	if len(images) != 1 {
+		t.Fatalf("expected 1 image, got %d", len(images))
+	}
+	if images[0].Id != 1 {
+		t.Errorf("expected Id=1, got %d", images[0].Id)
 	}
 }

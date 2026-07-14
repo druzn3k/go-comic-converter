@@ -176,3 +176,201 @@ func TestValidateOutputFormatInvalid(t *testing.T) {
 		t.Errorf("error should mention 'output-format', got: %v", err)
 	}
 }
+
+func TestValidateMissingInput(t *testing.T) {
+	c := New()
+	c.Options.Input = ""
+	err := c.Validate()
+	if err == nil {
+		t.Fatal("expected error for missing input, got nil")
+	}
+	if !contains(err.Error(), "missing input") {
+		t.Errorf("error should mention 'missing input', got: %v", err)
+	}
+}
+
+func TestValidateInvalidBrightness(t *testing.T) {
+	for _, b := range []int{-101, 101} {
+		c := New()
+		dir := t.TempDir()
+		c.Options.Input = dir
+		c.Options.Profile = "SR"
+		c.Options.Image.View.Color.Foreground = "000"
+		c.Options.Image.View.Color.Background = "FFF"
+		c.Options.Image.Brightness = b
+		err := c.Validate()
+		if err == nil {
+			t.Errorf("expected error for brightness=%d, got nil", b)
+			continue
+		}
+		if !contains(err.Error(), "brightness") {
+			t.Errorf("error for brightness=%d should mention 'brightness', got: %v", b, err)
+		}
+	}
+}
+
+func TestValidateInvalidFormat(t *testing.T) {
+	c := New()
+	dir := t.TempDir()
+	c.Options.Input = dir
+	c.Options.Profile = "SR"
+	c.Options.Image.View.Color.Foreground = "000"
+	c.Options.Image.View.Color.Background = "FFF"
+	c.Options.Image.Format = "invalid"
+	err := c.Validate()
+	if err == nil {
+		t.Fatal("expected error for invalid format, got nil")
+	}
+	if !contains(err.Error(), "format") {
+		t.Errorf("error should mention 'format', got: %v", err)
+	}
+}
+
+func TestValidateInvalidAspectRatio(t *testing.T) {
+	c := New()
+	dir := t.TempDir()
+	c.Options.Input = dir
+	c.Options.Profile = "SR"
+	c.Options.Image.View.Color.Foreground = "000"
+	c.Options.Image.View.Color.Background = "FFF"
+	c.Options.Image.View.AspectRatio = -2
+	err := c.Validate()
+	if err == nil {
+		t.Fatal("expected error for AspectRatio=-2, got nil")
+	}
+	if !contains(err.Error(), "aspect ratio") {
+		t.Errorf("error should mention 'aspect ratio', got: %v", err)
+	}
+}
+
+func TestValidateEmptyProfile(t *testing.T) {
+	c := New()
+	dir := t.TempDir()
+	c.Options.Input = dir
+	c.Options.Profile = ""
+	c.Options.Image.View.Color.Foreground = "000"
+	c.Options.Image.View.Color.Background = "FFF"
+	err := c.Validate()
+	if err == nil {
+		t.Fatal("expected error for empty profile, got nil")
+	}
+	if !contains(err.Error(), "profile") {
+		t.Errorf("error should mention 'profile', got: %v", err)
+	}
+}
+
+func TestValidateInvalidSortMode(t *testing.T) {
+	c := New()
+	dir := t.TempDir()
+	c.Options.Input = dir
+	c.Options.Profile = "SR"
+	c.Options.Image.View.Color.Foreground = "000"
+	c.Options.Image.View.Color.Background = "FFF"
+	c.Options.SortPathMode = 3
+	err := c.Validate()
+	if err == nil {
+		t.Fatal("expected error for SortPathMode=3, got nil")
+	}
+	if !contains(err.Error(), "sort") {
+		t.Errorf("error should mention 'sort', got: %v", err)
+	}
+}
+
+func TestValidateInvalidGrayscaleMode(t *testing.T) {
+	c := New()
+	dir := t.TempDir()
+	c.Options.Input = dir
+	c.Options.Profile = "SR"
+	c.Options.Image.View.Color.Foreground = "000"
+	c.Options.Image.View.Color.Background = "FFF"
+	c.Options.Image.GrayScaleMode = 3
+	err := c.Validate()
+	if err == nil {
+		t.Fatal("expected error for GrayScaleMode=3, got nil")
+	}
+	if !contains(err.Error(), "grayscale mode") {
+		t.Errorf("error should mention 'grayscale mode', got: %v", err)
+	}
+}
+
+func TestValidateInvalidTitlePage(t *testing.T) {
+	c := New()
+	dir := t.TempDir()
+	c.Options.Input = dir
+	c.Options.Profile = "SR"
+	c.Options.Image.View.Color.Foreground = "000"
+	c.Options.Image.View.Color.Background = "FFF"
+	c.Options.TitlePage = 3
+	err := c.Validate()
+	if err == nil {
+		t.Fatal("expected error for TitlePage=3, got nil")
+	}
+	if !contains(err.Error(), "title page") {
+		t.Errorf("error should mention 'title page', got: %v", err)
+	}
+}
+
+func TestValidateInvalidCropLimit(t *testing.T) {
+	c := New()
+	dir := t.TempDir()
+	c.Options.Input = dir
+	c.Options.Profile = "SR"
+	c.Options.Image.View.Color.Foreground = "000"
+	c.Options.Image.View.Color.Background = "FFF"
+	c.Options.Image.Crop.Limit = 101
+	err := c.Validate()
+	if err == nil {
+		t.Fatal("expected error for Crop.Limit=101, got nil")
+	}
+	if !contains(err.Error(), "crop limit") {
+		t.Errorf("error should mention 'crop limit', got: %v", err)
+	}
+}
+
+func TestValidateInvalidColor(t *testing.T) {
+	tests := []struct {
+		name  string
+		fg    string
+		bg    string
+		check string
+	}{
+		{"invalid foreground", "GGG", "FFF", "foreground"},
+		{"invalid background", "000", "ZZZ", "background"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := New()
+			dir := t.TempDir()
+			c.Options.Input = dir
+			c.Options.Profile = "SR"
+			c.Options.Image.View.Color.Foreground = tt.fg
+			c.Options.Image.View.Color.Background = tt.bg
+			err := c.Validate()
+			if err == nil {
+				t.Fatal("expected error for invalid color, got nil")
+			}
+			if !contains(err.Error(), tt.check) {
+				t.Errorf("error should mention %q, got: %v", tt.check, err)
+			}
+		})
+	}
+}
+
+func TestValidateValidAllFormats(t *testing.T) {
+	formats := []string{"epub", "kepub", "cbz", "html", "all"}
+	for _, f := range formats {
+		t.Run(f, func(t *testing.T) {
+			c := New()
+			dir := t.TempDir()
+			c.Options.Input = dir
+			c.Options.Profile = "SR"
+			c.Options.Image.View.Color.Foreground = "000"
+			c.Options.Image.View.Color.Background = "FFF"
+			c.Options.OutputFormat = f
+			err := c.Validate()
+			if err != nil {
+				t.Errorf("expected no error for output-format=%q, got: %v", f, err)
+			}
+		})
+	}
+}

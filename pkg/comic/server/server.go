@@ -95,8 +95,11 @@ func (s *Server) runWorker(ctx context.Context) {
 		// EPUB conversion handles the full pipeline
 		err := epub.New(opts).Write(ctx)
 
-		if job.Cleanup != nil {
-			job.Cleanup()
+		job.mu.Lock()
+		cleanup := job.Cleanup
+		job.mu.Unlock()
+		if cleanup != nil {
+			cleanup()
 		}
 		job.Done(err)
 		<-s.queue.sem

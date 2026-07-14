@@ -91,7 +91,9 @@ func (s *Server) handleConvertMultipart(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	// Cleanup runs after the worker finishes processing the job
+	job.mu.Lock()
 	job.Cleanup = func() { os.RemoveAll(tmpDir) }
+	job.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
