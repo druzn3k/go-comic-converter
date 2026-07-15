@@ -11,6 +11,8 @@ func (e ePUBImageProcessor) load(ctx context.Context) (totalImages int, output <
 	var src source.Source
 	if e.testSrc != nil {
 		src = e.testSrc
+	} else if len(e.InputBytes) > 0 {
+		src = source.NewFromBytes(e.InputBytes, e.Input, e.SortPathMode)
 	} else {
 		src = source.NewWithOpts(e.Input, e.SortPathMode, true)
 	}

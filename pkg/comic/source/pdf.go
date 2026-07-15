@@ -38,8 +38,11 @@ func (p *pdfSource) Load(ctx context.Context) (<-chan epubimageloader.Task, int,
 			img, err = pdfimage.Extract(pdf, i+1)
 
 			name := fmt.Sprintf(pageFmt, i+1)
-			if err != nil {
+			if err != nil || img == nil {
 				img = epubimageloader.CorruptedImage("", name)
+				if err == nil {
+					err = fmt.Errorf("can't extract image")
+				}
 			}
 			output <- epubimageloader.Task{
 				Id:    i,
@@ -66,4 +69,52 @@ func numberOfDigitsFmt(n int) string {
 		x *= 10
 	}
 	return "%0" + fmt.Sprintf("%d", count) + "d"
+}
+
+// pdfBytesSource implements Source for PDF files loaded from a byte slice.
+type pdfBytesSource struct {
+	data     []byte
+	name     string
+	sortMode int
+}
+
+func (p *pdfBytesSource) Name() string {
+	return p.name
+}
+
+func (p *pdfBytesSource) Load(ctx context.Context) (<-chan epubimageloader.Task, int, error) {
+	pdf := pdfread.LoadBytes(p.data)
+	if pdf == nil {
+		return nil, 0, fmt.Errorf("can't read pdf")
+	}
+
+	totalImages := len(pdf.Pages())
+	pageFmt := "page " + numberOfDigitsFmt(totalImages)
+	output := make(chan epubimageloader.Task)
+	go func() {
+		defer close(output)
+		defer pdf.Close()
+		for i := range totalImages {
+			var img image.Image
+			var err error
+			img, err = pdfimage.Extract(pdf, i+1)
+
+			name := fmt.Sprintf(pageFmt, i+1)
+			if err != nil || img == nil {
+				img = epubimageloader.CorruptedImage("", name)
+				if err == nil {
+					err = fmt.Errorf("can't extract image")
+				}
+			}
+			output <- epubimageloader.Task{
+				Id:    i,
+				Image: img,
+				Path:  "",
+				Name:  name,
+				Error: err,
+			}
+		}
+	}()
+
+	return output, totalImages, nil
 }

@@ -30,6 +30,9 @@ type EPUBOptions struct {
 	Strict       bool   `yaml:"-" json:"strict"`
 	Workers      int    `yaml:"-" json:"workers"`
 	OutputFormat string `yaml:"output_format,omitempty" json:"output_format,omitempty"`
+	// InputBytes, when non-nil, is used as the input data instead of reading from Input path.
+	// This is used in WASM environments to avoid double-copying through the virtual filesystem.
+	InputBytes []byte `yaml:"-" json:"-"`
 }
 
 func (o EPUBOptions) WorkersRatio(pct int) (nbWorkers int) {

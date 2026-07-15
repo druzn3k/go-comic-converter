@@ -56,3 +56,24 @@ func decodeWorkers() int {
 	}
 	return n
 }
+
+// NewFromBytes creates a Source from an in-memory byte slice.
+// The name parameter provides the filename extension for format detection (.cbz, .cbr, .pdf, etc.).
+func NewFromBytes(data []byte, name string, sortMode int) Source {
+	return NewFromBytesWithOpts(data, name, sortMode, true)
+}
+
+// NewFromBytesWithOpts creates a Source from an in-memory byte slice with explicit
+// webp/tiff support. See NewWithOpts for the includeWebpTiff semantics.
+func NewFromBytesWithOpts(data []byte, name string, sortMode int, includeWebpTiff bool) Source {
+	switch ext := strings.ToLower(filepath.Ext(name)); ext {
+	case ".cbz", ".zip":
+		return &cbzBytesSource{data: data, name: name, sortMode: sortMode, includeWebpTiff: includeWebpTiff}
+	case ".cbr", ".rar":
+		return &cbrBytesSource{data: data, name: name, sortMode: sortMode, includeWebpTiff: includeWebpTiff}
+	case ".pdf":
+		return &pdfBytesSource{data: data, name: name, sortMode: sortMode}
+	default:
+		return &errorSource{err: fmt.Errorf("unknown format: %s", ext)}
+	}
+}

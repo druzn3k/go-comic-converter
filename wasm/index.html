@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4a90d9">
 <title>Go Comic Converter — WASM</title>
 <style>
   :root {
@@ -77,6 +79,43 @@
   #result.success { display: block; background: #f0faf0; border: 1px solid #a5d6a7; }
   #result.error { display: block; background: #fff0f0; border: 1px solid #ef9a9a; }
   #result a { color: var(--accent); font-weight: 600; }
+
+  /* Action bar */
+  .action-bar { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; }
+  .btn-secondary {
+    padding: 8px 16px; background: #fff; color: var(--accent);
+    border: 1px solid var(--accent); border-radius: 6px;
+    font-size: 0.85rem; cursor: pointer; transition: background 0.2s; }
+  .btn-secondary:hover { background: #eef5ff; }
+
+  /* File list */
+  #fileList { margin-bottom: 12px; }
+  .file-item {
+    display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 4px; font-size: 0.88rem; }
+  .file-item.converting { border-color: var(--accent); background: #eef5ff; }
+  .file-item.done { border-color: var(--success); background: #f0faf0; }
+  .file-item.error { border-color: var(--error); background: #fff0f0; }
+  .file-icon { font-size: 1rem; min-width: 20px; }
+  .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-size { color: #888; font-size: 0.8rem; white-space: nowrap; }
+  .file-error { color: var(--error); font-size: 0.78rem; margin-left: 8px; }
+
+  #progressSummary { font-size: 0.85rem; color: #666; margin-bottom: 8px; text-align: right; }
+
+  /* HTML Preview */
+  #previewContainer {
+    display: none; margin-top: 16px; border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; background: var(--card); }
+  #previewContainer h3 { font-size: 0.95rem; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .preview-actions { display: flex; gap: 8px; padding: 8px 14px; background: #fafafa; }
+  .btn-download {
+    display: inline-block; padding: 6px 14px; background: var(--accent);
+    color: #fff; border-radius: 5px; text-decoration: none;
+    font-size: 0.85rem; font-weight: 500; }
+  .btn-download:hover { background: var(--accent-hover); }
+  #previewFrame { width: 100%; height: 600px; border: none; }
 </style>
 </head>
 <body>
@@ -87,9 +126,9 @@
   <!-- Drop zone -->
   <div id="dropzone" onclick="document.getElementById('fileInput').click()">
     <div class="icon">📂</div>
-    <div id="dropzone-text">Drop a comic file here, or click to browse</div>
-    <div style="font-size:0.8rem;color:#999;margin-top:4px">Supports CBZ, ZIP, CBR, RAR, PDF</div>
-    <input type="file" id="fileInput" accept=".cbz,.zip,.cbr,.rar,.pdf" style="display:none">
+    <div id="dropzone-text">Drop comic files here, or click to browse</div>
+    <div style="font-size:0.8rem;color:#999;margin-top:4px">Supports CBZ, ZIP, CBR, RAR, PDF — multiple files supported</div>
+    <input type="file" id="fileInput" multiple accept=".cbz,.zip,.cbr,.rar,.pdf" style="display:none">
   </div>
 
   <!-- Options form -->
@@ -103,6 +142,7 @@
           <option value="kepub">KEPUB (Kobo)</option>
           <option value="cbz">CBZ</option>
           <option value="html">HTML</option>
+          <option value="html-preview">HTML Preview</option>
         </select>
       </div>
       <div class="field">
@@ -213,7 +253,12 @@
     </div>
   </div>
 
-  <button class="btn-primary" id="convertBtn" onclick="doConvert()" disabled>Convert</button>
+    <div id="progressSummary"></div>
+
+  <!-- File list for batch -->
+  <div id="fileList"></div>
+
+<button class="btn-primary" id="convertBtn" onclick="doConvert()" disabled>Convert</button>
 
   <div id="result"></div>
   <div id="loading">
@@ -222,7 +267,27 @@
   </div>
 </div>
 
-<script src="wasm_exec.js"></script>
+
+  <!-- HTML Preview container -->
+  <div id="previewContainer">
+    <h3>Preview</h3>
+    <div class="preview-actions">
+      <a id="previewDownloadBtn" class="btn-download" download>Download</a>
+    </div>
+    <iframe id="previewFrame" sandbox="allow-scripts"></iframe>
+  </div>
 <script src="app.js"></script>
+<script>
+// Register Service Worker for offline PWA support
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js')
+    .then(function(reg) {
+      console.log('SW registered:', reg.scope);
+    })
+    .catch(function(err) {
+      console.warn('SW registration failed:', err.message);
+    });
+}
+</script>
 </body>
 </html>

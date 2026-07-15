@@ -27,6 +27,12 @@ Progress is reported via `window.onWasmProgress(msg)`.
 | `wasm/index.html` | Full options form: file drop, 30+ options, profile selector, recipe dropdown. |
 | `wasm/app.js` | JS glue: WASM loading, drag-n-drop, form collection, progress, download. |
 | `wasm/main.wasm` | Compiled WASM binary (~22MB). |
+| `wasm/memfs.js` | In-memory filesystem polyfill for Go WASM |
+| `wasm/worker.js` | Web Worker hosting Go WASM runtime |
+| `wasm/service-worker.js` | Offline PWA cache (cache-first for WASM) |
+| `wasm/manifest.json` | PWA manifest |
+| `wasm/version.json` | Content-hash WASM URL mapping (build artifact) |
+| `wasm/icons/` | PWA icons (192×192, 512×512) |
 | `wasm/wasm_exec.js` | Go WASM runtime (copied from `$(go env GOROOT)/lib/wasm/`). |
 
 ### Makefile
@@ -72,14 +78,16 @@ First load downloads ~5–6 MB. After browser cache, subsequent loads are instan
 
 ---
 
-## Future enhancements
+## Implemented enhancements
 
-See [PLAN-WASM-ENHANCEMENTS.md](PLAN-WASM-ENHANCEMENTS.md) for the detailed implementation roadmap.
+All phases from [PLAN-WASM-ENHANCEMENTS.md](PLAN-WASM-ENHANCEMENTS.md) are implemented:
 
-Planned enhancements (by priority):
-1. CBR/PDF/KEPUB/CBZ/HTML — test and document (already compiled)
-2. Web Workers — non-blocking conversion
-3. Batch conversion — multi-file drag-drop
-4. Service Worker — offline PWA
-5. Streaming I/O — reduce memory copies
-6. HTML inline preview
+| Phase | Enhancement | Status |
+|-------|-------------|--------|
+| 0 | Memfs polyfill — in-memory filesystem for browser | ✅ |
+| 1 | Output path fix — correct extension per format | ✅ |
+| 2 | Web Workers — non-blocking conversion | ✅ |
+| 3 | Batch conversion — multi-file drag-drop queue | ✅ |
+| 4 | Service Worker + PWA — offline support | ✅ |
+| 5 | Streaming I/O — bytes directly to source readers | ✅ |
+| 6 | HTML inline preview — sandboxed iframe | ✅ |

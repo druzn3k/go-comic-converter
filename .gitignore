@@ -6,3 +6,8 @@
 .bak
 go-comic-converter
 coverage.out
+# WASM build artifacts
+wasm/main.wasm
+wasm/main.*.wasm
+wasm/version.json
+wasm/wasm_exec.js

@@ -24,6 +24,9 @@ wasm: $(WASM_BINARY)
 $(WASM_BINARY): cmd/wasm/*.go
 	GOOS=js GOARCH=wasm $(GO) build -o $@ ./cmd/wasm/
 	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" $(WASM_DIR)/wasm_exec.js
+	HASH=$$(sha256sum $(WASM_BINARY) | cut -c1-16); \
+	cp $(WASM_BINARY) $(WASM_DIR)/main.$$HASH.wasm; \
+	echo "{\"wasm\": \"main.$$HASH.wasm\"}" > $(WASM_DIR)/version.json
 
 wasm-serve: $(WASM_BINARY)
 	@echo "Open http://localhost:8080 in your browser"

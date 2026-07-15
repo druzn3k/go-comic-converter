@@ -2,10 +2,13 @@ package source
 
 import (
 	"archive/zip"
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"image"
 	"image/jpeg"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -406,5 +409,233 @@ func TestLoadWithValidCBZ(t *testing.T) {
 		if task.Image == nil {
 			t.Error("task.Image is nil")
 		}
+	}
+}
+
+// helper: creates a CBZ in memory (as bytes) containing a single JPEG.
+func createTestCBZBytes(t *testing.T) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	w := zip.NewWriter(&buf)
+
+	jf, err := w.Create("page001.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	img := image.NewRGBA(image.Rect(0, 0, 16, 16))
+	if err := jpeg.Encode(jf, img, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+// helper: creates a minimal valid PDF in memory (no images, but structurally valid).
+func createTestPDFBytes(t *testing.T) []byte {
+	t.Helper()
+	// Build PDF with exact byte offsets for xref table.
+	var pdf bytes.Buffer
+
+	// Object 1 (Catalog)
+	pdf.WriteString("%PDF-1.4\n")
+	obj1 := pdf.Len()
+	pdf.WriteString("1 0 obj\n")
+	pdf.WriteString("<< /Type /Catalog /Pages 2 0 R >>\n")
+	pdf.WriteString("endobj\n")
+
+	// Object 2 (Pages)
+	obj2 := pdf.Len()
+	pdf.WriteString("2 0 obj\n")
+	pdf.WriteString("<< /Type /Pages /Kids [3 0 R] /Count 1 >>\n")
+	pdf.WriteString("endobj\n")
+
+	// Object 3 (Page)
+	obj3 := pdf.Len()
+	pdf.WriteString("3 0 obj\n")
+	pdf.WriteString("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>\n")
+	pdf.WriteString("endobj\n")
+
+	// xref table
+	xref := pdf.Len()
+	pdf.WriteString("xref\n")
+	pdf.WriteString("0 4\n")
+	pdf.WriteString("0000000000 65535 f \n")
+	fmt.Fprintf(&pdf, "%010d 00000 n \n", obj1)
+	fmt.Fprintf(&pdf, "%010d 00000 n \n", obj2)
+	fmt.Fprintf(&pdf, "%010d 00000 n \n", obj3)
+	pdf.WriteString("trailer\n")
+	pdf.WriteString("<< /Size 4 /Root 1 0 R >>\n")
+	pdf.WriteString("startxref\n")
+	fmt.Fprintf(&pdf, "%d\n", xref)
+	pdf.WriteString("%%EOF\n")
+
+	return pdf.Bytes()
+}
+
+func TestNewFromBytesZip(t *testing.T) {
+	data := createTestCBZBytes(t)
+	s := NewFromBytes(data, "test.zip", 0)
+	if _, ok := s.(*cbzBytesSource); !ok {
+		t.Errorf("expected *cbzBytesSource, got %T", s)
+	}
+}
+
+func TestNewFromBytesCBR(t *testing.T) {
+	s := NewFromBytes([]byte{0}, "test.cbr", 0)
+	if _, ok := s.(*cbrBytesSource); !ok {
+		t.Errorf("expected *cbrBytesSource, got %T", s)
+	}
+}
+
+func TestNewFromBytesRAR(t *testing.T) {
+	s := NewFromBytes([]byte{0}, "test.rar", 0)
+	if _, ok := s.(*cbrBytesSource); !ok {
+		t.Errorf("expected *cbrBytesSource, got %T", s)
+	}
+}
+
+func TestNewFromBytesPDF(t *testing.T) {
+	data := createTestPDFBytes(t)
+	s := NewFromBytes(data, "test.pdf", 0)
+	if _, ok := s.(*pdfBytesSource); !ok {
+		t.Errorf("expected *pdfBytesSource, got %T", s)
+	}
+}
+
+func TestNewFromBytesUnknown(t *testing.T) {
+	s := NewFromBytes([]byte{0}, "test.xyz", 0)
+	if _, ok := s.(*errorSource); !ok {
+		t.Errorf("expected *errorSource, got %T", s)
+	}
+}
+
+func TestNewFromBytesWithOptsNoWebPTiff(t *testing.T) {
+	data := createTestCBZBytes(t)
+	s := NewFromBytesWithOpts(data, "test.cbz", 0, false)
+	cbz, ok := s.(*cbzBytesSource)
+	if !ok {
+		t.Fatalf("expected *cbzBytesSource, got %T", s)
+	}
+	if cbz.includeWebpTiff {
+		t.Error("expected includeWebpTiff=false")
+	}
+}
+
+func TestCBZBytesSourceName(t *testing.T) {
+	data := createTestCBZBytes(t)
+	s := NewFromBytes(data, "my-archive.cbz", 0)
+	if got := s.Name(); got != "my-archive.cbz" {
+		t.Errorf("Name() = %q, want %q", got, "my-archive.cbz")
+	}
+}
+
+func TestPDFBytesSourceName(t *testing.T) {
+	data := createTestPDFBytes(t)
+	s := NewFromBytes(data, "my-doc.pdf", 0)
+	if got := s.Name(); got != "my-doc.pdf" {
+		t.Errorf("Name() = %q, want %q", got, "my-doc.pdf")
+	}
+}
+
+func TestCBRBytesSourceName(t *testing.T) {
+	s := NewFromBytes([]byte{0}, "archive.cbr", 0)
+	if got := s.Name(); got != "archive.cbr" {
+		t.Errorf("Name() = %q, want %q", got, "archive.cbr")
+	}
+}
+
+func TestCBZBytesSourceLoad(t *testing.T) {
+	data := createTestCBZBytes(t)
+	s := NewFromBytes(data, "test.cbz", 0)
+
+	tasks, count, err := s.Load(context.Background())
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 image, got %d", count)
+	}
+
+	for task := range tasks {
+		if task.Error != nil {
+			t.Errorf("task has error: %v", task.Error)
+		}
+		if task.Image == nil {
+			t.Error("task.Image is nil")
+		}
+	}
+}
+
+func TestCBZBytesSourceLoadNoImages(t *testing.T) {
+	// Create a CBZ with no image files (only a text file)
+	var buf bytes.Buffer
+	w := zip.NewWriter(&buf)
+	tf, err := w.Create("readme.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	io.WriteString(tf, "not an image")
+	w.Close()
+
+	s := NewFromBytes(buf.Bytes(), "empty.cbz", 0)
+	_, _, err = s.Load(context.Background())
+	if err != epubimageloader.ErrNoImagesFound {
+		t.Errorf("expected ErrNoImagesFound, got %v", err)
+	}
+}
+
+func TestCBZBytesSourceLoadContextCancellation(t *testing.T) {
+	data := createTestCBZBytes(t)
+	s := NewFromBytes(data, "test.cbz", 0)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel immediately
+
+	tasks, _, err := s.Load(ctx)
+	if err != nil {
+		t.Fatalf("Load() should not error on cancelled context: %v", err)
+	}
+
+	// Drain the channel — tasks should be empty or stop early
+	var got int
+	for range tasks {
+		got++
+	}
+	// With immediate cancellation, we may get 0 or 1 tasks depending on timing
+	if got > 1 {
+		t.Errorf("expected at most 1 task with cancelled context, got %d", got)
+	}
+}
+
+func TestPDFBytesSourceLoad(t *testing.T) {
+	data := createTestPDFBytes(t)
+	s := NewFromBytes(data, "test.pdf", 0)
+
+	tasks, count, err := s.Load(context.Background())
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 page, got %d", count)
+	}
+
+	for task := range tasks {
+		// PDF has no actual image data, so extraction will produce a corrupted image
+		if task.Error == nil && task.Image == nil {
+			t.Error("task should have error or an image")
+		}
+		_ = task
+	}
+}
+
+func TestCBRBytesSourceLoadInvalidData(t *testing.T) {
+	// RAR data must start with valid RAR signature; garbage data should error
+	s := NewFromBytes([]byte("not a rar file"), "test.cbr", 0)
+	_, _, err := s.Load(context.Background())
+	if err == nil {
+		t.Error("expected error for invalid RAR data")
 	}
 }

@@ -73,24 +73,35 @@ func main() {
 		}
 
 		// Setup virtual filesystem paths
-		inputPath := "/input/" + wopts.InputName
-		baseName := strings.TrimSuffix(wopts.InputName, ".cbz")
-		baseName = strings.TrimSuffix(baseName, ".zip")
-		baseName = strings.TrimSuffix(baseName, ".cbr")
-		baseName = strings.TrimSuffix(baseName, ".rar")
-		baseName = strings.TrimSuffix(baseName, ".pdf")
-		outputPath := "/output/" + baseName + ".epub"
-
-		// Write input to virtual filesystem
-		if err := os.MkdirAll("/input", 0755); err != nil {
-			return "error: " + err.Error()
+		// input bytes flow directly via InputBytes
+		baseName := wopts.InputName
+		for _, ext := range []string{".cbz", ".zip", ".cbr", ".rar", ".pdf"} {
+			baseName = strings.TrimSuffix(baseName, ext)
 		}
+
+		// Determine output format and set correct extension
+		outputFormat := wopts.OutputFormat
+		if outputFormat == "" {
+			outputFormat = "epub"
+		}
+		var outputExt string
+		switch outputFormat {
+		case "kepub":
+			outputExt = ".kepub.epub"
+		case "cbz":
+			outputExt = ".cbz"
+		case "html":
+			outputExt = ".html"
+		default:
+			outputExt = ".epub"
+		}
+		outputPath := "/output/" + baseName + outputExt
+
+		// Ensure output directory exists
 		if err := os.MkdirAll("/output", 0755); err != nil {
 			return "error: " + err.Error()
 		}
-		if err := os.WriteFile(inputPath, inputBytes, 0644); err != nil {
-			return "error: " + err.Error()
-		}
+		// Input bytes passed directly via InputBytes — no memfs write
 
 		// Map profiles to dimensions
 		profileWidth := 1200
@@ -108,15 +119,12 @@ func main() {
 			profileHeight = p[1]
 		}
 
-		// Determine output format
-		outputFormat := wopts.OutputFormat
-		if outputFormat == "" {
-			outputFormat = "epub"
-		}
+
 
 		// Build EPUBOptions
 		opts := epuboptions.EPUBOptions{
-			Input:        inputPath,
+			Input:        wopts.InputName,
+			InputBytes:   inputBytes,
 			Output:       outputPath,
 			Title:        wopts.Title,
 			Author:       wopts.Author,
@@ -210,19 +218,11 @@ func main() {
 		reportProgress("Reading output...")
 
 		// Read output from virtual filesystem
-		// For CBZ output, adjust extension
+		// outputPath already has the correct extension per format
 		readPath := outputPath
-		if outputFormat == "cbz" {
-			readPath = strings.TrimSuffix(outputPath, ".epub") + ".cbz"
-		} else if outputFormat == "kepub" {
-			readPath = strings.TrimSuffix(outputPath, ".epub") + ".kepub.epub"
-		} else if outputFormat == "html" {
-			readPath = strings.TrimSuffix(outputPath, ".epub") + ".html"
-		}
-		// Try "all" formats
+		// For "all" format, return the EPUB (primary format)
 		if outputFormat == "all" {
-			// Return the EPUB (primary format)
-			readPath = outputPath
+			readPath = "/output/" + baseName + ".epub"
 		}
 
 		outputBytes, err := os.ReadFile(readPath)
