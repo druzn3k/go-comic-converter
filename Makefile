@@ -1,6 +1,7 @@
 GO        ?= go
 BINARY    ?= go-comic-converter
 FUZZ_TIME ?= 10s
+CONTAINER_RUNTIME ?= $(shell command -v docker 2>/dev/null || command -v podman 2>/dev/null || echo docker)
 
 # Per-package fuzz targets for discoverability
 FUZZ_TARGETS = \
@@ -33,6 +34,13 @@ wasm-serve: $(WASM_BINARY)
 	cd $(WASM_DIR) && python3 -m http.server 8080 2>/dev/null || \
 	  go run main.go -serve :8080 2>/dev/null || \
 	  echo "Install python3 or go, then run: cd wasm && python3 -m http.server 8080"
+
+.PHONY: docker-wasm docker-wasm-run
+docker-wasm:
+	$(CONTAINER_RUNTIME) build -f Dockerfile.wasm -t go-comic-converter-wasm .
+
+docker-wasm-run: docker-wasm
+	$(CONTAINER_RUNTIME) run --rm -p 8080:8080 go-comic-converter-wasm
 .PHONY: all build test vet lint clean cover \
         test-race fuzz fuzz-all clean-testdata
 
