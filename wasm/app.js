@@ -127,7 +127,7 @@ function updateFileList() {
   var html = '';
   var done = 0;
   var total = fileStatuses.size;
-  var icons = { pending: '\u23F3', converting: '\u{1F504}', done: '\u2705', error: '\u274C' };
+  var icons = { pending: '', converting: '', done: '', error: '' };
 
   fileStatuses.forEach(function (st) {
     var icon = icons[st.status] || icons.pending;
