@@ -29,3 +29,44 @@ jobs:
 
       - name: Test
         run: go test -timeout 120s -count=1 ./...
+
+  wasm-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build WASM binary
+        run: make wasm
+
+      - name: Generate test fixtures
+        run: go run ./scripts/fetch-testdata/
+
+      - name: Install Playwright
+        working-directory: wasm/e2e
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: wasm/e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        working-directory: wasm/e2e
+        run: npx playwright test
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: wasm/e2e/playwright-report/
+          retention-days: 7
