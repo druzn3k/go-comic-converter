@@ -44,6 +44,20 @@ function initWorker() {
         break;
      }
   });
+
+  worker.addEventListener('error', function (e) {
+    console.error('Worker fatal error:', e.message);
+    workerReady = false;
+    showResult('WASM worker crashed: ' + (e.message || 'unknown'), 'error');
+    if (typeof worker.terminate === 'function') worker.terminate();
+  });
+
+  worker.addEventListener('messageerror', function (e) {
+    console.error('Worker message error:', e.data);
+    workerReady = false;
+    showResult('WASM worker message error: ' + (e.data || 'unknown'), 'error');
+    if (typeof worker.terminate === 'function') worker.terminate();
+  });
  }
  
 // ── file handling – multiple files ────────────────────────────────────────
@@ -219,11 +233,17 @@ function getOptions() {
 /**
  * Posts one file to the worker and returns a Promise that resolves with the
  * worker's {type:'result', data:ArrayBuffer, filename} or rejects on error.
+ * The fileId parameter is the correlation key: the worker echoes it as msg.id
+ * in its {type:'result'|'error'} response, so convertOne filters messages
+ * belonging to other concurrent conversions.
  */
 function convertOne(fileId, file, optionsJson) {
   return new Promise(function (resolve, reject) {
     function handler(e) {
       var msg = e.data;
+      // Filter messages by fileId — only respond to our own conversion
+      if (msg.id !== fileId) return;
+
 
       if (msg.type === 'progress') {
         document.getElementById('progress-text').textContent = msg.message;
@@ -248,7 +268,7 @@ function convertOne(fileId, file, optionsJson) {
     // Read file and transfer its ArrayBuffer to the worker
     file.arrayBuffer().then(function (buffer) {
       worker.postMessage(
-        { type: 'convert', inputData: buffer, options: optionsJson, filename: file.name },
+        { type: 'convert', id: fileId, inputData: buffer, options: optionsJson, filename: file.name },
         [buffer]
       );
     }).catch(function (err) {
@@ -280,6 +300,13 @@ async function processQueue() {
     var entry = entries[i];
     var st = entry.status;
     var id = entry.id;
+    if (!workerReady) {
+      st.status = 'error';
+      st.error = 'Worker terminated unexpectedly';
+      updateFileList();
+      break;
+    }
+
  
     st.status = 'converting';
     delete st.error;
