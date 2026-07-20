@@ -57,8 +57,8 @@ make wasm-serve  # Start local HTTP server on :8080
 | Recipe system (5 built-in recipes) | ✅ |
 | ComicInfo.xml metadata | ✅ |
 | Device profiles (8 profiles) | ✅ |
-| CBR/RAR input | ⚠️ Compiled, needs testing |
-| PDF input | ⚠️ Compiled, needs testing |
+| CBR/RAR input | ✅ Tested — `cbr_load_test.go` + fixture |
+| PDF input | ✅ Tested — `pdf_load_test.go`, `pdf_safety_test.go` + fixture |
 | Drag-n-drop upload | ✅ |
 | Progress indicator | ✅ |
 | Error handling | ✅ |
@@ -91,3 +91,30 @@ All phases from [PLAN-WASM-ENHANCEMENTS.md](PLAN-WASM-ENHANCEMENTS.md) are imple
 | 4 | Service Worker + PWA — offline support | ✅ |
 | 5 | Streaming I/O — bytes directly to source readers | ✅ |
 | 6 | HTML inline preview — sandboxed iframe | ✅ |
+
+---
+
+## WASM E2E (Playwright)
+
+End-to-end tests for the WASM browser app live in `wasm/e2e/`. They verify:
+
+- P2 error handler: per-file errors don't leak to the global banner
+- CBR input: happy-path conversion to EPUB with download
+- PDF input: happy-path conversion and graceful handling of unsupported encodings
+
+**Setup** (requires a built WASM binary):
+
+    make wasm
+    cd wasm/e2e && npm ci && npx playwright install --with-deps chromium
+
+**Run locally:**
+
+    # Terminal 1: serve the app
+    make wasm-serve
+
+    # Terminal 2: run tests
+    cd wasm/e2e && npx playwright test
+
+**CI:** the `wasm-e2e` job in `.github/workflows/ci.yml` builds the WASM binary,
+generates fixtures, installs Playwright, and runs the full suite against
+Chromium. On failure, the Playwright report is uploaded as an artifact.
