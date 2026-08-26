@@ -65,14 +65,14 @@ func GetParts(ctx context.Context, proc epubimageprocessor.EPUBImageProcessor, o
 	maxSize := uint64(opts.LimitMb * 1024 * 1024)
 	xhtmlSize := uint64(1024)
 	// descriptor files + title + cover
-	baseSize := uint64(128*1024) + imgStorage.Size(cover.EPUBImgPath())*2
+	baseSize := uint64(128*1024) + imgStorage.Size(cover.StorageKey())*2
 
 	currentSize := baseSize
 	currentImages := make([]epubimage.EPUBImage, 0)
 	part := 1
 
 	for _, img := range images {
-		imgSize := imgStorage.Size(img.EPUBImgPath()) + xhtmlSize
+		imgSize := imgStorage.Size(img.StorageKey()) + xhtmlSize
 		if maxSize > 0 && len(currentImages) > 0 && currentSize+imgSize > maxSize {
 			parts = append(parts, Part{
 				Cover:  cover,

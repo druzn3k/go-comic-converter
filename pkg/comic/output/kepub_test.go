@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimage"
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubtemplates"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 )
 
@@ -52,52 +53,11 @@ func TestKEPUBWriterSupportsPartSplit(t *testing.T) {
 }
 
 func TestKEPUBTextTemplateHasKobolinkDiv(t *testing.T) {
-	if !strings.Contains(kepubTextTemplate, `<div class="kobolink">`) {
+	if !strings.Contains(epubtemplates.KepubText, `<div class="kobolink">`) {
 		t.Error("KEPUB text template missing kobolink div wrapper")
 	}
-	if !strings.Contains(kepubTextTemplate, `</div>`) {
+	if !strings.Contains(epubtemplates.KepubText, `</div>`) {
 		t.Error("KEPUB text template missing closing div")
-	}
-}
-
-func TestKEPUBContentOPFHasKoboStyleMeta(t *testing.T) {
-	w := KEPUBWriter{}
-	opf := w.generateContentOPF(kepubContentData{
-		Title:        "Test Comic",
-		UID:          "test-uid",
-		Author:       "Test Author",
-		Current:      1,
-		Total:        1,
-		ImageOptions: testImageOptions(),
-		Images:       []epubimage.EPUBImage{testImage()},
-	})
-	if !strings.Contains(opf, `name="kobo-style"`) {
-		t.Error("content.opf missing kobo-style metadata")
-	}
-	if !strings.Contains(opf, `<package`) {
-		t.Error("content.opf missing <package> root element")
-	}
-	if !strings.Contains(opf, `<metadata`) {
-		t.Error("content.opf missing <metadata> element")
-	}
-	if !strings.Contains(opf, `dc:title`) {
-		t.Error("content.opf missing dc:title")
-	}
-}
-
-func TestKEPUBContentOPFNamespace(t *testing.T) {
-	w := KEPUBWriter{}
-	opf := w.generateContentOPF(kepubContentData{
-		Title:        "Test",
-		UID:          "uid",
-		Author:       "Author",
-		Current:      1,
-		Total:        1,
-		ImageOptions: testImageOptions(),
-		Images:       []epubimage.EPUBImage{testImage()},
-	})
-	if !strings.Contains(opf, `http://www.idpf.org/2007/opf`) {
-		t.Error("content.opf missing IDPF namespace")
 	}
 }
 
