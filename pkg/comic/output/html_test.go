@@ -60,14 +60,14 @@ func TestHTMLWriterWrite(t *testing.T) {
 	fakeImage1 := []byte{0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00} // JPEG header
 	fakeImage2 := []byte{0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00} // JPEG header
 
-	// Add images with paths matching what EPUBImgPath() generates.
+	// Add images with paths matching the format-neutral StorageKey().
 	img1 := epubimage.EPUBImage{Id: 1, Part: 0, Format: "jpeg"}
 	img2 := epubimage.EPUBImage{Id: 2, Part: 0, Format: "jpeg"}
 
-	if err := imgWriter.AddRaw(img1.EPUBImgPath(), fakeImage1); err != nil {
+	if err := imgWriter.AddRaw(img1.StorageKey(), fakeImage1); err != nil {
 		t.Fatalf("add image 1: %v", err)
 	}
-	if err := imgWriter.AddRaw(img2.EPUBImgPath(), fakeImage2); err != nil {
+	if err := imgWriter.AddRaw(img2.StorageKey(), fakeImage2); err != nil {
 		t.Fatalf("add image 2: %v", err)
 	}
 	if err := imgWriter.Close(); err != nil {
@@ -155,7 +155,7 @@ func TestHTMLWriterContextCancellation(t *testing.T) {
 		t.Fatalf("create storage writer: %v", err)
 	}
 	img := epubimage.EPUBImage{Id: 1, Part: 0, Format: "jpeg"}
-	if err := imgWriter.AddRaw(img.EPUBImgPath(), []byte{0xff, 0xd8, 0xff}); err != nil {
+	if err := imgWriter.AddRaw(img.StorageKey(), []byte{0xff, 0xd8, 0xff}); err != nil {
 		t.Fatalf("add image: %v", err)
 	}
 	if err := imgWriter.Close(); err != nil {

@@ -120,7 +120,7 @@ func (e ePUBImageProcessor) Load(ctx context.Context) (images []epubimage.EPUBIm
 						e.EPUBOptions.Image.AutoSplitDoublePage && !e.EPUBOptions.Image.KeepDoublePageIfSplit {
 						continue
 					}
-					if stErr := imgStorage.Add(img.EPUBImgPath(), img.Raw, e.Image.Quality); stErr != nil {
+					if stErr := imgStorage.Add(img.ImgPath(), img.Raw, e.Image.Quality); stErr != nil {
 						select {
 						case errc <- fmt.Errorf("error with %s: %w", input.Name, stErr):
 						default:
@@ -154,7 +154,7 @@ func (e ePUBImageProcessor) Load(ctx context.Context) (images []epubimage.EPUBIm
 				for i, b := range []bool{e.Image.Manga, !e.Image.Manga} {
 					splitImgs := e.transformImage(input, i+1, b)
 					for _, img := range splitImgs {
-						if stErr := imgStorage.Add(img.EPUBImgPath(), img.Raw, e.Image.Quality); stErr != nil {
+						if stErr := imgStorage.Add(img.ImgPath(), img.Raw, e.Image.Quality); stErr != nil {
 							select {
 							case errc <- fmt.Errorf("error with %s: %w", input.Name, stErr):
 							default:

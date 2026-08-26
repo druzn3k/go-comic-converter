@@ -253,13 +253,13 @@ func (w KEPUBWriter) processImages(
 
 	maxSize := uint64(opts.LimitMb * 1024 * 1024)
 	xhtmlSize := uint64(1024)
-	baseSize := uint64(128*1024) + imgStorage.Size(cover.EPUBImgPath())*2
+	baseSize := uint64(128*1024) + imgStorage.Size(cover.StorageKey())*2
 
 	currentSize := baseSize
 	currentImages := make([]epubimage.EPUBImage, 0)
 
 	for _, img := range images {
-		imgSize := imgStorage.Size(img.EPUBImgPath()) + xhtmlSize
+		imgSize := imgStorage.Size(img.StorageKey()) + xhtmlSize
 		if maxSize > 0 && len(currentImages) > 0 && currentSize+imgSize > maxSize {
 			parts = append(parts, kepubPart{Cover: cover, Images: currentImages})
 			currentSize = baseSize
@@ -366,7 +366,7 @@ func (w KEPUBWriter) writePart(
 
 	lastImage := part.Images[len(part.Images)-1]
 	for _, img := range part.Images {
-		if err := w.writePageImage(wz, img, imgStorage.Get(img.EPUBImgPath()), opts, render); err != nil {
+		if err := w.writePageImage(wz, img, imgStorage.Get(img.StorageKey()), opts, render); err != nil {
 			return err
 		}
 
@@ -514,7 +514,7 @@ func (w KEPUBWriter) writePageImage(
 		})),
 	)
 	if err == nil {
-		err = wz.Copy(zipImg)
+		err = wz.CopyWithName(zipImg, img.EPUBImgPath())
 	}
 	return err
 }

@@ -81,7 +81,7 @@ func (w HTMLWriter) writeHTML(outputPath string, part OutputPart, imgStorage epu
 	entries = append(entries, imgEntry{
 		ID:       part.Cover.Id,
 		Part:     part.Cover.Part,
-		EPUBPath: part.Cover.EPUBImgPath(),
+		EPUBPath: part.Cover.StorageKey(),
 		Format:   part.Cover.Format,
 	})
 
@@ -89,7 +89,7 @@ func (w HTMLWriter) writeHTML(outputPath string, part OutputPart, imgStorage epu
 		entries = append(entries, imgEntry{
 			ID:       img.Id,
 			Part:     img.Part,
-			EPUBPath: img.EPUBImgPath(),
+			EPUBPath: img.StorageKey(),
 			Format:   img.Format,
 		})
 	}

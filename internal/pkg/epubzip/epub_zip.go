@@ -7,6 +7,7 @@ package epubzip
 
 import (
 	"archive/zip"
+	"io"
 	"os"
 	"time"
 )
@@ -61,6 +62,27 @@ func (e EPUBZip) WriteMagic() error {
 
 func (e EPUBZip) Copy(fz *zip.File) error {
 	return e.wz.Copy(fz)
+}
+
+// CopyWithName copies a pre-compressed zip entry into the EPUB under a new name.
+func (e EPUBZip) CopyWithName(fz *zip.File, name string) error {
+	r, err := fz.OpenRaw()
+	if err != nil {
+		return err
+	}
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return err
+	}
+
+	fh := fz.FileHeader
+	fh.Name = name
+	m, err := e.wz.CreateRaw(&fh)
+	if err != nil {
+		return err
+	}
+	_, err = m.Write(data)
+	return err
 }
 
 // WriteRaw Write image. They are already compressed, so we write them down directly.

@@ -428,7 +428,7 @@ func (e ePUBImagePassthrough) copyRawDataToStorage(
 		OriginalAspectRatio: float64(config.Height) / float64(config.Width),
 	}
 
-	err = imgStorage.AddRaw(img.EPUBImgPath(), uncompressedData)
+	err = imgStorage.AddRaw(img.ImgPath(), uncompressedData)
 
 	return
 }

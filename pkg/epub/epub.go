@@ -135,7 +135,7 @@ func (e epub) writeImage(wz epubzip.EPUBZip, img epubimage.EPUBImage, zipImg *zi
 		})),
 	)
 	if err == nil {
-		err = wz.Copy(zipImg)
+		err = wz.CopyWithName(zipImg, img.EPUBImgPath())
 	}
 
 	return err
@@ -372,7 +372,7 @@ func (e epub) writePart(path string, currentPart, totalParts int, part epubPart,
 
 	lastImage := part.Images[len(part.Images)-1]
 	for _, img := range part.Images {
-		if err := e.writeImage(wz, img, imgStorage.Get(img.EPUBImgPath())); err != nil {
+		if err := e.writeImage(wz, img, imgStorage.Get(img.StorageKey())); err != nil {
 			return err
 		}
 

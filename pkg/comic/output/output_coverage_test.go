@@ -34,7 +34,7 @@ func createTestStorage(t *testing.T, format string) (epubzip.StorageImageReader,
 		Width:  100,
 		Height: 150,
 	}
-	if err := sw.Add(testImg.EPUBImgPath(), img, 85); err != nil {
+	if err := sw.Add(testImg.StorageKey(), img, 85); err != nil {
 		sw.Close()
 		t.Fatal(err)
 	}
@@ -145,15 +145,15 @@ func TestCBZWriterWrite(t *testing.T) {
 		t.Fatalf("create storage writer: %v", err)
 	}
 
-	// Add cover and page images matching EPUBImgPath paths.
+	// Add cover and page images matching StorageKey paths.
 	cover := epubimage.EPUBImage{Id: 0, Part: 0, Format: "jpeg"}
 	page1 := epubimage.EPUBImage{Id: 1, Part: 0, Format: "jpeg"}
 	fakeJPEG := []byte{0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00}
 
-	if err := sw.AddRaw(cover.EPUBImgPath(), fakeJPEG); err != nil {
+	if err := sw.AddRaw(cover.StorageKey(), fakeJPEG); err != nil {
 		t.Fatalf("add cover: %v", err)
 	}
-	if err := sw.AddRaw(page1.EPUBImgPath(), fakeJPEG); err != nil {
+	if err := sw.AddRaw(page1.StorageKey(), fakeJPEG); err != nil {
 		t.Fatalf("add page1: %v", err)
 	}
 	if err := sw.Close(); err != nil {
@@ -254,7 +254,7 @@ func TestCBZWriterWriteNoMetadata(t *testing.T) {
 	page1 := epubimage.EPUBImage{Id: 1, Part: 0, Format: "jpeg"}
 	fakeJPEG := []byte{0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00}
 
-	if err := sw.AddRaw(page1.EPUBImgPath(), fakeJPEG); err != nil {
+	if err := sw.AddRaw(page1.StorageKey(), fakeJPEG); err != nil {
 		t.Fatalf("add page1: %v", err)
 	}
 	if err := sw.Close(); err != nil {
@@ -412,10 +412,10 @@ func TestCBZWriterMultiPart(t *testing.T) {
 	fakeJPEG := []byte{0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00}
 	cover := epubimage.EPUBImage{Id: 0, Part: 0, Format: "jpeg"}
 	page1 := epubimage.EPUBImage{Id: 1, Part: 0, Format: "jpeg"}
-	if err := sw.AddRaw(cover.EPUBImgPath(), fakeJPEG); err != nil {
+	if err := sw.AddRaw(cover.StorageKey(), fakeJPEG); err != nil {
 		t.Fatalf("add cover: %v", err)
 	}
-	if err := sw.AddRaw(page1.EPUBImgPath(), fakeJPEG); err != nil {
+	if err := sw.AddRaw(page1.StorageKey(), fakeJPEG); err != nil {
 		t.Fatalf("add page1: %v", err)
 	}
 	if err := sw.Close(); err != nil {

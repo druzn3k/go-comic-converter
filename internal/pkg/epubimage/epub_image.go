@@ -68,6 +68,11 @@ func (i EPUBImage) ImgPath() string {
 	return "Images/" + i.ImgKey() + "." + i.Format
 }
 
+// StorageKey returns the format-neutral key under which the processed image is stored in the temp ZIP.
+func (i EPUBImage) StorageKey() string {
+	return i.ImgPath()
+}
+
 // EPUBImgPath image path into the EPUB
 func (i EPUBImage) EPUBImgPath() string {
 	return "OEBPS/" + i.ImgPath()

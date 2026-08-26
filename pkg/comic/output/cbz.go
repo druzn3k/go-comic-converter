@@ -83,7 +83,7 @@ func (w CBZWriter) writeCBZ(outputPath string, part OutputPart, imgStorage epubz
 	coverEntry := imgEntry{
 		ID:       part.Cover.Id,
 		Part:     part.Cover.Part,
-		EPUBPath: part.Cover.EPUBImgPath(),
+		EPUBPath: part.Cover.StorageKey(),
 		CBZName:  fmt.Sprintf("%s.%s", part.Cover.ImgKey(), part.Cover.Format),
 	}
 	entries = append(entries, coverEntry)
@@ -93,7 +93,7 @@ func (w CBZWriter) writeCBZ(outputPath string, part OutputPart, imgStorage epubz
 		entries = append(entries, imgEntry{
 			ID:       img.Id,
 			Part:     img.Part,
-			EPUBPath: img.EPUBImgPath(),
+			EPUBPath: img.StorageKey(),
 			CBZName:  fmt.Sprintf("%s.%s", img.ImgKey(), img.Format),
 		})
 	}
