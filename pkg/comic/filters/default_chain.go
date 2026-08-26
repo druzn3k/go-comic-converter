@@ -5,7 +5,6 @@ import (
 
 	"github.com/disintegration/gift"
 
-	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimagefilters"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 )
 
@@ -29,12 +28,12 @@ func DefaultChain(src image.Image, opts DefaultChainOpts) (*gift.GIFT, image.Rec
 
 	// Portrait mode: split before crop
 	if opts.Part > 0 && !opts.KeepSplitDoublePageAspect {
-		g.Add(epubimagefilters.CropSplitDoublePage(opts.Right))
+		g.Add(CropSplitDoublePage(opts.Right))
 	}
 
 	// Crop or blank detection
 	if opts.Image.Crop.Enabled || opts.Image.NoBlankImage {
-		f := epubimagefilters.AutoCrop(
+		f := AutoCrop(
 			src,
 			g.Bounds(srcBounds),
 			opts.Image.Crop.Left,
@@ -53,7 +52,7 @@ func DefaultChain(src image.Image, opts DefaultChainOpts) (*gift.GIFT, image.Rec
 
 	// Landscape mode: crop before split
 	if opts.Part > 0 && opts.KeepSplitDoublePageAspect {
-		g.Add(epubimagefilters.CropSplitDoublePage(opts.Right))
+		g.Add(CropSplitDoublePage(opts.Right))
 	}
 
 	dstBounds := g.Bounds(srcBounds)
@@ -63,7 +62,7 @@ func DefaultChain(src image.Image, opts DefaultChainOpts) (*gift.GIFT, image.Rec
 		g.Add(gift.Rotate90())
 	}
 	if opts.Image.AutoContrast {
-		g.Add(epubimagefilters.AutoContrast())
+		g.Add(AutoContrast())
 	}
 	if opts.Image.Contrast != 0 {
 		g.Add(gift.Contrast(float32(opts.Image.Contrast)))
@@ -93,7 +92,69 @@ func DefaultChain(src image.Image, opts DefaultChainOpts) (*gift.GIFT, image.Rec
 		g.Add(f)
 	}
 
-	g.Add(epubimagefilters.Pixel())
+	g.Add(Pixel())
 
 	return g, g.Bounds(srcBounds).Intersect(srcBounds), isDoublePage
+}
+
+// DefaultFilterConfigs returns a recipe configuration that reproduces the
+// default processing chain for the given image options. It is total: every
+// filter that DefaultChain may apply is represented, with the same option
+// values and the same integer scale used by gift.
+func DefaultFilterConfigs(img epuboptions.Image) []FilterConfig {
+	var cfgs []FilterConfig
+	if img.AutoSplitDoublePage {
+		cfgs = append(cfgs, FilterConfig{
+			Name: "split_double_page",
+			Params: map[string]any{
+				"keep_original": img.KeepDoublePageIfSplit,
+				"manga":         img.Manga,
+			},
+		})
+	}
+	if img.Crop.Enabled || img.NoBlankImage {
+		cfgs = append(cfgs, FilterConfig{
+			Name: "auto_crop",
+			Params: map[string]any{
+				"left":                  img.Crop.Left,
+				"up":                    img.Crop.Up,
+				"right":                 img.Crop.Right,
+				"bottom":                img.Crop.Bottom,
+				"limit":                 img.Crop.Limit,
+				"skip_if_limit_reached": img.Crop.SkipIfLimitReached,
+			},
+		})
+	}
+	if img.AutoContrast {
+		cfgs = append(cfgs, FilterConfig{Name: "auto_contrast"})
+	}
+	if img.Contrast != 0 {
+		cfgs = append(cfgs, FilterConfig{
+			Name:   "contrast",
+			Params: map[string]any{"amount": img.Contrast},
+		})
+	}
+	if img.Brightness != 0 {
+		cfgs = append(cfgs, FilterConfig{
+			Name:   "brightness",
+			Params: map[string]any{"amount": img.Brightness},
+		})
+	}
+	if img.Resize {
+		cfgs = append(cfgs, FilterConfig{
+			Name: "resize",
+			Params: map[string]any{
+				"width":  img.View.Width,
+				"height": img.View.Height,
+			},
+		})
+	}
+	if img.GrayScale {
+		cfgs = append(cfgs, FilterConfig{
+			Name:   "grayscale",
+			Params: map[string]any{"mode": img.GrayScaleMode},
+		})
+	}
+	cfgs = append(cfgs, FilterConfig{Name: "pixel"})
+	return cfgs
 }

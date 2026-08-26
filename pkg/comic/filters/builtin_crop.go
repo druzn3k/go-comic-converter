@@ -5,8 +5,6 @@ import (
 	"image"
 
 	"github.com/disintegration/gift"
-
-	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimagefilters"
 )
 
 // AutoCropFilter crops blank margins from an image.
@@ -25,7 +23,7 @@ type AutoCropFilter struct {
 func (f *AutoCropFilter) Name() string { return "auto_crop" }
 
 func (f *AutoCropFilter) Apply(ctx context.Context, img image.Image, fctx FilterContext) []image.Image {
-	filter := epubimagefilters.AutoCrop(img, img.Bounds(), f.Left, f.Up, f.Right, f.Bottom, f.Limit, f.SkipIfLimitReached)
+	filter := AutoCrop(img, img.Bounds(), f.Left, f.Up, f.Right, f.Bottom, f.Limit, f.SkipIfLimitReached)
 	bounds := filter.Bounds(img.Bounds())
 	if bounds.Dx() <= 0 || bounds.Dy() <= 0 {
 		return []image.Image{image.NewRGBA(image.Rect(0, 0, 1, 1))}

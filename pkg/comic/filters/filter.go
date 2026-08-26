@@ -5,15 +5,12 @@ import (
 	"context"
 	"image"
 	"sync"
-
-	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 )
 
 // FilterContext provides per-image context to filters.
 type FilterContext struct {
 	Part           int
 	Right          bool
-	ImageOptions   epuboptions.Image
 	IsDoublePage   bool
 	OriginalBounds image.Rectangle
 }

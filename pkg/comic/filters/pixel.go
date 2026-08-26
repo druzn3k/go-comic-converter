@@ -1,4 +1,4 @@
-package epubimagefilters
+package filters
 
 import (
 	"image"

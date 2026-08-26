@@ -1,4 +1,4 @@
-package epubimagefilters
+package filters
 
 import (
 	"image"
@@ -19,6 +19,7 @@ func colorIsBlank(c color.Color) bool {
 	g := color.GrayModel.Convert(c).(color.Gray)
 	return g.Y >= 0xe0
 }
+
 // isBlankPixel checks if a pixel is blank (light enough) using direct
 // pixel access for performance on common image types.
 func isBlankPixel(img image.Image, x, y int) bool {
@@ -32,7 +33,6 @@ func isBlankPixel(img image.Image, x, y int) bool {
 		return colorIsBlank(img.At(x, y))
 	}
 }
-
 
 // lookup for margin (blank) around the image
 type cutRatioOptions struct {

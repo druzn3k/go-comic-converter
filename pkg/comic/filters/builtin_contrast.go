@@ -5,7 +5,6 @@ import (
 	"image"
 
 	"github.com/disintegration/gift"
-	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimagefilters"
 )
 
 func init() {
@@ -22,13 +21,13 @@ func init() {
 	})
 }
 
-// AutoContrastFilter wraps epubimagefilters.AutoContrast via gift.
+// AutoContrastFilter wraps AutoContrast via gift.
 type AutoContrastFilter struct{}
 
 func (f *AutoContrastFilter) Name() string { return "auto_contrast" }
 
 func (f *AutoContrastFilter) Apply(ctx context.Context, img image.Image, fctx FilterContext) []image.Image {
-	g := gift.New(epubimagefilters.AutoContrast())
+	g := gift.New(AutoContrast())
 	dst := image.NewNRGBA64(g.Bounds(img.Bounds()))
 	g.Draw(dst, img)
 	return []image.Image{dst}

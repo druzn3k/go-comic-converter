@@ -5,7 +5,6 @@ import (
 	"image"
 
 	"github.com/disintegration/gift"
-	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimagefilters"
 )
 
 func init() {
@@ -35,7 +34,7 @@ type CropSplitDoublePageFilter struct{ Right bool }
 func (f *CropSplitDoublePageFilter) Name() string { return "crop_split_double_page" }
 
 func (f *CropSplitDoublePageFilter) Apply(ctx context.Context, img image.Image, fctx FilterContext) []image.Image {
-	filter := epubimagefilters.CropSplitDoublePage(f.Right)
+	filter := CropSplitDoublePage(f.Right)
 	g := gift.New(filter)
 	dst := image.NewNRGBA64(g.Bounds(img.Bounds()))
 	g.Draw(dst, img)

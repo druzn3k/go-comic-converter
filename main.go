@@ -261,7 +261,7 @@ func generate(ctx context.Context, cmd *converter.Converter) {
 			APIVersion:  1,
 			Name:        "custom",
 			Description: "Recipe from current options",
-			Filters:     optionsToFilterConfigs(&cmd.Options.EPUBOptions),
+			Filters:     filters.DefaultFilterConfigs(cmd.Options.Image),
 		}
 		out, err := yaml.Marshal(recipe)
 		if err != nil {
@@ -375,50 +375,4 @@ func loadRecipe(nameOrPath string) (*filters.Chain, error) {
 		return nil, fmt.Errorf("recipe %q not found as builtin or file: %w", nameOrPath, err)
 	}
 	return filters.FromYAML(string(data))
-}
-
-// optionsToFilterConfigs converts the current image options into a list of
-// filter configurations that approximates the default processing chain.
-func optionsToFilterConfigs(opts *epuboptions.EPUBOptions) []filters.FilterConfig {
-	var cfgs []filters.FilterConfig
-	img := opts.Image
-	if img.Crop.Enabled {
-		cfgs = append(cfgs, filters.FilterConfig{
-			Name: "auto_crop",
-			Params: map[string]any{
-				"left":   img.Crop.Left,
-				"up":     img.Crop.Up,
-				"right":  img.Crop.Right,
-				"bottom": img.Crop.Bottom,
-			},
-		})
-	}
-	if img.AutoContrast {
-		cfgs = append(cfgs, filters.FilterConfig{Name: "auto_contrast"})
-	}
-	if img.Contrast != 0 {
-		cfgs = append(cfgs, filters.FilterConfig{
-			Name:   "contrast",
-			Params: map[string]any{"amount": float64(img.Contrast) / 100.0},
-		})
-	}
-	if img.Brightness != 0 {
-		cfgs = append(cfgs, filters.FilterConfig{
-			Name:   "brightness",
-			Params: map[string]any{"amount": float64(img.Brightness) / 100.0},
-		})
-	}
-	if img.Resize && img.View.Width > 0 && img.View.Height > 0 {
-		cfgs = append(cfgs, filters.FilterConfig{
-			Name: "resize",
-			Params: map[string]any{
-				"width":  img.View.Width,
-				"height": img.View.Height,
-			},
-		})
-	}
-	if img.GrayScale {
-		cfgs = append(cfgs, filters.FilterConfig{Name: "grayscale"})
-	}
-	return cfgs
 }

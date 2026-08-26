@@ -13,7 +13,6 @@ import (
 	"github.com/disintegration/gift"
 
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimage"
-	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimagefilters"
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubprogress"
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubzip"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/filters"
@@ -261,7 +260,6 @@ func (e ePUBImageProcessor) transformImage(input epubimageloader.Task, part int,
 		fctx := filters.FilterContext{
 			Part:           part,
 			Right:          right,
-			ImageOptions:   e.Image,
 			OriginalBounds: srcBounds,
 		}
 		results := e.chain.Apply(context.Background(), src, fctx)
@@ -350,7 +348,7 @@ func (e ePUBImageProcessor) cover16LevelOfGray(bounds image.Rectangle) draw.Imag
 // CoverTitleData create a title page with the cover
 func (e ePUBImageProcessor) CoverTitleData(o CoverTitleDataOptions) (epubzip.Image, error) {
 	// Create a blur version of the cover
-	g := gift.New(epubimagefilters.CoverTitle(o.Text, o.Align, o.PctWidth, o.PctMargin, o.MaxFontSize, o.BorderSize))
+	g := gift.New(filters.CoverTitle(o.Text, o.Align, o.PctWidth, o.PctMargin, o.MaxFontSize, o.BorderSize))
 	var dst draw.Image
 	if o.Name == "cover" && e.Image.GrayScale {
 		dst = e.cover16LevelOfGray(o.Src.Bounds())

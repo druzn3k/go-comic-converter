@@ -1,4 +1,4 @@
-package epubimagefilters
+package filters
 
 import (
 	"image"
@@ -8,7 +8,6 @@ import (
 
 	"github.com/disintegration/gift"
 )
-
 
 // AutoContrast Automatically improve contrast
 func AutoContrast() gift.Filter {

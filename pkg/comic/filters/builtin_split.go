@@ -5,8 +5,6 @@ import (
 	"image"
 
 	"github.com/disintegration/gift"
-
-	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimagefilters"
 )
 
 // SplitDoublePageFilter splits a double-page spread into two halves.
@@ -27,8 +25,8 @@ func (f *SplitDoublePageFilter) Apply(ctx context.Context, img image.Image, fctx
 		return []image.Image{img}
 	}
 
-	leftFilter := epubimagefilters.CropSplitDoublePage(false)
-	rightFilter := epubimagefilters.CropSplitDoublePage(true)
+	leftFilter := CropSplitDoublePage(false)
+	rightFilter := CropSplitDoublePage(true)
 
 	leftDst := image.NewNRGBA64(leftFilter.Bounds(bounds))
 	rightDst := image.NewNRGBA64(rightFilter.Bounds(bounds))
