@@ -7,6 +7,7 @@ import (
 	"context"
 
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimage"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/filters"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 )
 
@@ -53,6 +54,11 @@ type OutputWriter interface {
 	// SupportsPartSplit indicates whether this format supports splitting
 	// output into multiple files by size limit.
 	SupportsPartSplit() bool
+}
+
+// ChainCarrier is implemented by writers that can accept a recipe chain.
+type ChainCarrier interface {
+	SetRecipe(*filters.Chain)
 }
 
 // registry maps format names to their constructors.

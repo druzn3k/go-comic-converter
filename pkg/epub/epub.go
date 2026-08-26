@@ -9,6 +9,7 @@ import (
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubtemplates"
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubwriter"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/comic"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/filters"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 )
 
@@ -23,11 +24,17 @@ type EPUB interface {
 
 type epub struct {
 	epuboptions.EPUBOptions
+	chain *filters.Chain
 }
 
 // New initialize EPUB
 func New(options epuboptions.EPUBOptions) EPUB {
 	return &epub{EPUBOptions: options}
+}
+
+// SetRecipe sets the filter chain for recipe-based processing.
+func (e *epub) SetRecipe(chain *filters.Chain) {
+	e.chain = chain
 }
 
 // Write creates the EPUB file(s) from the configured input.
@@ -37,6 +44,11 @@ func (e *epub) Write(ctx context.Context) error {
 		imageProcessor = epubimagepassthrough.New(e.EPUBOptions)
 	} else {
 		imageProcessor = epubimageprocessor.New(e.EPUBOptions)
+	}
+	if e.chain != nil {
+		if p, ok := imageProcessor.(interface{ SetRecipe(*filters.Chain) }); ok {
+			p.SetRecipe(e.chain)
+		}
 	}
 
 	comicParts, imgStorage, err := comic.GetParts(ctx, imageProcessor, e.EPUBOptions)

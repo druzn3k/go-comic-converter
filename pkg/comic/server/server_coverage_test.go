@@ -5,6 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"image"
+	"image/png"
+	"os"
+	"path/filepath"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -247,4 +251,43 @@ func TestConcurrencyLimit(t *testing.T) {
 	// Cleanup remaining slots
 	<-q.sem
 	<-q.sem
+}
+
+func TestRunWorkerProducesEPUB(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Chdir(tmpDir)
+
+	imgDir := filepath.Join(tmpDir, "images")
+	if err := os.MkdirAll(imgDir, 0755); err != nil {
+		t.Fatalf("create image dir: %v", err)
+	}
+	imgPath := filepath.Join(imgDir, "page.png")
+	f, err := os.Create(imgPath)
+	if err != nil {
+		t.Fatalf("create image: %v", err)
+	}
+	if err := png.Encode(f, image.NewRGBA(image.Rect(0, 0, 100, 150))); err != nil {
+		_ = f.Close()
+		t.Fatalf("encode png: %v", err)
+	}
+	_ = f.Close()
+
+	s := New(context.Background(), Config{MaxConcurrent: 1, AllowLocalPaths: true})
+	job, err := s.queue.Submit(imgDir)
+	if err != nil {
+		t.Fatalf("submit job: %v", err)
+	}
+
+	select {
+	case <-job.DoneCh():
+		if job.Result != nil {
+			t.Fatalf("conversion failed: %v", job.Result)
+		}
+	case <-time.After(30 * time.Second):
+		t.Fatal("timeout waiting for conversion job")
+	}
+
+	if _, err := os.Stat(".epub"); err != nil {
+		t.Fatalf("expected .epub output in working directory: %v", err)
+	}
 }

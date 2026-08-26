@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/converter"
-	"github.com/druzn3k/go-comic-converter/v3/pkg/epub"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/comic"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 )
 
@@ -92,8 +92,17 @@ func (s *Server) runWorker(ctx context.Context) {
 		job.SendProgress("processing")
 
 		opts := epuboptions.EPUBOptions{Input: job.Opts}
-		// EPUB conversion handles the full pipeline
-		err := epub.New(opts).Write(ctx)
+		if opts.OutputFormat == "" {
+			opts.OutputFormat = "epub"
+		}
+		if opts.Image.Format == "" {
+			opts.Image.Format = "jpeg"
+		}
+		if opts.Image.Quality == 0 {
+			opts.Image.Quality = 85
+		}
+		// Server default is EPUB; route through the shared converter.
+		err := comic.New(opts).Convert(ctx)
 
 		job.mu.Lock()
 		cleanup := job.Cleanup

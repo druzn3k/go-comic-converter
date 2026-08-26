@@ -17,18 +17,14 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime/debug"
-	"sort"
 	"syscall"
 	"time"
 
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/converter"
-	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimageprocessor"
-	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubimagepassthrough"
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/utils"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/comic"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/output"
 	comicServer "github.com/druzn3k/go-comic-converter/v3/pkg/comic/server"
-	"github.com/druzn3k/go-comic-converter/v3/pkg/epub"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 	"gopkg.in/yaml.v3"
 
@@ -155,69 +151,8 @@ func watch(ctx context.Context, cmd *converter.Converter) {
 	}
 }
 
-// runSingleFormat dispatches a non-EPUB format through the OutputWriter path.
-// It loads images via the processor, creates OutputParts, and calls the
-// registered OutputWriter for the given format.
+// runSingleFormat dispatches a single format through the shared comic.Converter.
 func runSingleFormat(ctx context.Context, format string, opts epuboptions.EPUBOptions, cmd *converter.Converter, chain *filters.Chain) error {
-	var imageProcessor epubimageprocessor.EPUBImageProcessor
-	if opts.Image.Format == "copy" {
-		imageProcessor = epubimagepassthrough.New(opts)
-	} else {
-		p := epubimageprocessor.New(opts)
-		if chain != nil {
-			if sp, ok := p.(interface{ SetRecipe(*filters.Chain) }); ok {
-				sp.SetRecipe(chain)
-			}
-		}
-		imageProcessor = p
-	}
-
-	images, err := imageProcessor.Load(ctx)
-	if err != nil {
-		return err
-	}
-
-	// Sort and validate
-	sort.Slice(images, func(i, j int) bool {
-		if images[i].Id == images[j].Id {
-			return images[i].Part < images[j].Part
-		}
-		return images[i].Id < images[j].Id
-	})
-
-	if opts.Strict {
-		for _, img := range images {
-			if img.Error != nil {
-				return fmt.Errorf("strict mode: %s: %v",
-					filepath.Join(img.Path, img.Name), img.Error)
-			}
-		}
-	}
-
-	if len(images) == 0 {
-		return fmt.Errorf("no images found")
-	}
-
-	// Separate cover and build parts
-	cover := images[0]
-	pageImages := images
-	if opts.Image.HasCover {
-		pageImages = images[1:]
-	}
-
-	parts := []output.OutputPart{{
-		Cover:      cover,
-		Images:     pageImages,
-		PartNumber: 1,
-		TotalParts: 1,
-		Metadata: output.PartMetadata{
-			Title:       opts.Title,
-			Author:      opts.Author,
-			Publisher:   "GO Comic Converter",
-			ImageConfig: opts.Image,
-		},
-	}}
-
 	writer := output.Get(format)
 	if writer == nil {
 		return fmt.Errorf("unsupported output format: %s", format)
@@ -230,16 +165,29 @@ func runSingleFormat(ctx context.Context, format string, opts epuboptions.EPUBOp
 	} else {
 		opts.Output = opts.Output + writer.Extension()
 	}
+	opts.OutputFormat = format
 
-	paths, err := writer.Write(ctx, parts, opts)
+	var c *comic.Converter
+	if chain != nil {
+		c = comic.NewWithRecipe(opts, chain)
+	} else {
+		c = comic.New(opts)
+	}
+
+	err := c.Convert(ctx)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			fmt.Println("\nCancelled")
 			os.Exit(1)
 		}
+		if errors.Is(err, comic.ErrImageCorrupted) {
+			if !opts.Dry {
+				cmd.Stats()
+			}
+			utils.Fatalf("Error: %v\n", err)
+		}
 		return err
 	}
-	_ = paths
 	return nil
 }
 
@@ -317,41 +265,10 @@ func generate(ctx context.Context, cmd *converter.Converter) {
 
 	if format == "all" {
 		// "all" path: run each registered format once
-		for _, f := range output.Available() {
-			runFormat := f
-			runOpts := cmd.Options.EPUBOptions
-			runOpts.Output = cmd.Options.Output
-
-			writer := output.Get(runFormat)
-			if writer == nil {
-				continue
-			}
-
-			// Adjust extension
-			ext := filepath.Ext(runOpts.Output)
-			if ext != "" {
-				runOpts.Output = runOpts.Output[:len(runOpts.Output)-len(ext)] + writer.Extension()
-			} else {
-				runOpts.Output = runOpts.Output + writer.Extension()
-			}
-
-			if err := runSingleFormat(ctx, runFormat, runOpts, cmd, chain); err != nil {
+		for _, runFormat := range output.Available() {
+			if err := runSingleFormat(ctx, runFormat, cmd.Options.EPUBOptions, cmd, chain); err != nil {
 				cmd.Fatal(err)
 			}
-		}
-	} else if format == "epub" {
-		// Legacy EPUB path: handles everything internally
-		if err := epub.New(cmd.Options.EPUBOptions).Write(ctx); err != nil {
-			if errors.Is(err, context.Canceled) {
-				utils.Println("\nCancelled")
-				os.Exit(1)
-			}
-			if errors.Is(err, epub.ErrImageCorrupted) {
-				if !cmd.Options.Dry {
-					cmd.Stats()
-				}
-			}
-			utils.Fatalf("Error: %v\n", err)
 		}
 	} else {
 		// OutputWriter path: load images, dispatch to format writer

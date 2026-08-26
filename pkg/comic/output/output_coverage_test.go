@@ -319,6 +319,7 @@ func TestGetFormat(t *testing.T) {
 		want   bool // non-nil?
 	}{
 		{"cbz", true},
+		{"epub", true},
 		{"kepub", true},
 		{"html", true},
 		{"unknown", false},
@@ -337,7 +338,7 @@ func TestAvailable(t *testing.T) {
 	for _, f := range formats {
 		found[f] = true
 	}
-	for _, want := range []string{"cbz", "kepub", "html"} {
+	for _, want := range []string{"cbz", "epub", "html", "kepub"} {
 		if !found[want] {
 			t.Errorf("Available() missing %q", want)
 		}

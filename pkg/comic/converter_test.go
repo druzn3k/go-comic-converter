@@ -287,9 +287,10 @@ func TestConvertEPUBDirect(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	outDir := t.TempDir()
 	opts := Options{
 		Input:        dir,
-		Output:       filepath.Join(t.TempDir(), "test.epub"),
+		Output:       filepath.Join(outDir, "test.epub"),
 		OutputFormat: "epub",
 		Image: epuboptions.Image{
 			Format: "jpeg",
@@ -298,8 +299,11 @@ func TestConvertEPUBDirect(t *testing.T) {
 	}
 	c := New(opts)
 	err := c.Convert(context.Background())
-	if err == nil {
-		t.Error("expected error for direct EPUB format")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, err := os.Stat(opts.Output); err != nil {
+		t.Fatalf("expected output file: %v", err)
 	}
 }
 

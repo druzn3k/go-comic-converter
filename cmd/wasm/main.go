@@ -9,48 +9,47 @@ import (
 	"strings"
 	"syscall/js"
 
-	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/filters"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/comic"
-	"github.com/druzn3k/go-comic-converter/v3/pkg/epub"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/filters"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 )
 
 type wasmOptions struct {
-	InputName       string  `json:"inputName"`
-	OutputFormat    string  `json:"outputFormat"`
-	ImageFormat     string  `json:"imageFormat"`
-	Quality         int     `json:"quality"`
-	Grayscale       bool    `json:"grayscale"`
-	GrayscaleMode   int     `json:"grayscaleMode"`
-	Crop            bool    `json:"crop"`
-	CropLeft        int     `json:"cropLeft"`
-	CropUp          int     `json:"cropUp"`
-	CropRight       int     `json:"cropRight"`
-	CropBottom      int     `json:"cropBottom"`
-	CropLimit       int     `json:"cropLimit"`
-	Brightness      int     `json:"brightness"`
-	Contrast        int     `json:"contrast"`
-	AutoContrast    bool    `json:"autoContrast"`
-	AutoRotate      bool    `json:"autoRotate"`
-	AutoSplitDouble bool    `json:"autoSplitDouble"`
-	KeepDoubleIfSplit bool  `json:"keepDoubleIfSplit"`
-	KeepSplitAspect bool    `json:"keepSplitAspect"`
-	NoBlankImage    bool    `json:"noBlankImage"`
-	Manga           bool    `json:"manga"`
-	HasCover        bool    `json:"hasCover"`
-	Resize          bool    `json:"resize"`
-	Profile         string  `json:"profile"`
-	AspectRatio     float64 `json:"aspectRatio"`
-	PortraitOnly    bool    `json:"portraitOnly"`
-	TitlePage       int     `json:"titlePage"`
-	LimitMb         int     `json:"limitMb"`
-	Title           string  `json:"title"`
-	Author          string  `json:"author"`
-	Series          string  `json:"series"`
-	Number          string  `json:"number"`
-	Genre           string  `json:"genre"`
-	MangaTag        bool    `json:"mangaTag"`
-	Recipe          string  `json:"recipe"`
+	InputName         string  `json:"inputName"`
+	OutputFormat      string  `json:"outputFormat"`
+	ImageFormat       string  `json:"imageFormat"`
+	Quality           int     `json:"quality"`
+	Grayscale         bool    `json:"grayscale"`
+	GrayscaleMode     int     `json:"grayscaleMode"`
+	Crop              bool    `json:"crop"`
+	CropLeft          int     `json:"cropLeft"`
+	CropUp            int     `json:"cropUp"`
+	CropRight         int     `json:"cropRight"`
+	CropBottom        int     `json:"cropBottom"`
+	CropLimit         int     `json:"cropLimit"`
+	Brightness        int     `json:"brightness"`
+	Contrast          int     `json:"contrast"`
+	AutoContrast      bool    `json:"autoContrast"`
+	AutoRotate        bool    `json:"autoRotate"`
+	AutoSplitDouble   bool    `json:"autoSplitDouble"`
+	KeepDoubleIfSplit bool    `json:"keepDoubleIfSplit"`
+	KeepSplitAspect   bool    `json:"keepSplitAspect"`
+	NoBlankImage      bool    `json:"noBlankImage"`
+	Manga             bool    `json:"manga"`
+	HasCover          bool    `json:"hasCover"`
+	Resize            bool    `json:"resize"`
+	Profile           string  `json:"profile"`
+	AspectRatio       float64 `json:"aspectRatio"`
+	PortraitOnly      bool    `json:"portraitOnly"`
+	TitlePage         int     `json:"titlePage"`
+	LimitMb           int     `json:"limitMb"`
+	Title             string  `json:"title"`
+	Author            string  `json:"author"`
+	Series            string  `json:"series"`
+	Number            string  `json:"number"`
+	Genre             string  `json:"genre"`
+	MangaTag          bool    `json:"mangaTag"`
+	Recipe            string  `json:"recipe"`
 }
 
 func main() {
@@ -107,7 +106,7 @@ func main() {
 		profileWidth := 1200
 		profileHeight := 1920
 		profiles := map[string][2]int{
-			"HR":  {2400, 3840}, "SR": {1200, 1920},
+			"HR": {2400, 3840}, "SR": {1200, 1920},
 			"K1": {600, 670}, "K11": {1072, 1448},
 			"KV": {1072, 1448}, "KPW": {758, 1024},
 			"KPW5": {1236, 1648}, "KO": {1264, 1680},
@@ -118,8 +117,6 @@ func main() {
 			profileWidth = p[0]
 			profileHeight = p[1]
 		}
-
-
 
 		// Build EPUBOptions
 		opts := epuboptions.EPUBOptions{
@@ -191,24 +188,19 @@ func main() {
 
 		reportProgress("Processing images...")
 
-		// Run conversion
+		// Run conversion through the shared converter so recipes reach EPUB too.
 		var convertErr error
-		if outputFormat == "epub" {
-			convertErr = epub.New(opts).Write(ctx)
+		var chain *filters.Chain
+		if wopts.Recipe != "" {
+			chain, convertErr = filters.BuiltinRecipe(wopts.Recipe)
+			if convertErr != nil {
+				return "error: " + convertErr.Error()
+			}
+		}
+		if chain != nil {
+			convertErr = comic.NewWithRecipe(opts, chain).Convert(ctx)
 		} else {
-			// Use comic.Converter for non-EPUB formats (CBZ, KEPUB, HTML)
-			var chain *filters.Chain
-			if wopts.Recipe != "" {
-				chain, convertErr = filters.BuiltinRecipe(wopts.Recipe)
-				if convertErr != nil {
-					return "error: " + convertErr.Error()
-				}
-			}
-			if chain != nil {
-				convertErr = comic.NewWithRecipe(opts, chain).Convert(ctx)
-			} else {
-				convertErr = comic.New(opts).Convert(ctx)
-			}
+			convertErr = comic.New(opts).Convert(ctx)
 		}
 
 		if convertErr != nil {

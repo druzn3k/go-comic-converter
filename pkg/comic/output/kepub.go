@@ -9,6 +9,7 @@ import (
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubtemplates"
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/epubwriter"
 	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/utils"
+	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/filters"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 )
 
@@ -17,11 +18,18 @@ func init() {
 }
 
 // KEPUBWriter produces KEPUB files (Kobo-enhanced EPUB) from processed comic images.
-type KEPUBWriter struct{}
+type KEPUBWriter struct {
+	chain *filters.Chain
+}
 
 func (w KEPUBWriter) Format() string          { return "kepub" }
 func (w KEPUBWriter) Extension() string       { return ".kepub.epub" }
 func (w KEPUBWriter) SupportsPartSplit() bool { return true }
+
+// SetRecipe stores the recipe chain for recipe-based KEPUB output.
+func (w *KEPUBWriter) SetRecipe(chain *filters.Chain) {
+	w.chain = chain
+}
 
 var kepubVariant = epubwriter.Variant{
 	Extension:    ".kepub.epub",

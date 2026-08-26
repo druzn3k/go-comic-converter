@@ -59,8 +59,6 @@ func (c *Converter) SetRecipe(chain *filters.Chain) {
 
 // Convert runs the full pipeline: load → process → output.
 // It dispatches to the registered OutputWriter for the configured format.
-// EPUB output is handled by pkg/epub; use comic.New().Convert() for
-// "kepub", "cbz", "html", or "all".
 func (c *Converter) Convert(ctx context.Context) error {
 	if c.ProgressCallback != nil {
 		c.ProgressCallback("loading")
@@ -84,10 +82,6 @@ func (c *Converter) Convert(ctx context.Context) error {
 	}()
 
 	format := c.opts.OutputFormat
-	if format == "" || format == "epub" {
-		return fmt.Errorf("EPUB output requires pkg/epub; use comic.Converter for non-EPUB formats (kepub, cbz, html)")
-	}
-
 	if format == "all" {
 		err := c.writeAll(ctx, parts, imgStorage)
 		if c.ProgressCallback != nil {
@@ -100,6 +94,9 @@ func (c *Converter) Convert(ctx context.Context) error {
 	writer := output.Get(format)
 	if writer == nil {
 		return fmt.Errorf("unknown output format: %s", format)
+	}
+	if cc, ok := writer.(output.ChainCarrier); ok {
+		cc.SetRecipe(c.chain)
 	}
 	_, err = writer.Write(ctx, outputParts, c.opts)
 
@@ -121,6 +118,9 @@ func (c *Converter) writeAll(ctx context.Context, parts []Part, imgStorage epubz
 		writer := output.Get(format)
 		if writer == nil {
 			continue
+		}
+		if cc, ok := writer.(output.ChainCarrier); ok {
+			cc.SetRecipe(c.chain)
 		}
 		_, err := writer.Write(ctx, outputParts, c.opts)
 		if err != nil && firstErr == nil {
