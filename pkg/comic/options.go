@@ -5,6 +5,7 @@ package comic
 
 import "github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
 
+// Deprecated: use epuboptions.EPUBOptions directly.
 // Options is the public alias for the options type.
 // It re-exports epuboptions.EPUBOptions to provide a stable import path
 // independent of the output format.

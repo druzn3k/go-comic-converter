@@ -4,6 +4,7 @@ import (
 	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/viewport"
 )
 
+// Deprecated: import pkg/comic/viewport directly.
 // ImageAspect, PartAspect, ComputeAspectRatio, and ComputeViewPort
 // are defined in the subpackage pkg/comic/viewport and re-exported here
 // for backward compatibility with existing callers.
