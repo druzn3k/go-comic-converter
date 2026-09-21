@@ -9,6 +9,7 @@ import (
 	"strings"
 	"syscall/js"
 
+	"github.com/druzn3k/go-comic-converter/v3/internal/pkg/converter"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/comic"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/filters"
 	"github.com/druzn3k/go-comic-converter/v3/pkg/epuboptions"
@@ -102,20 +103,12 @@ func main() {
 		}
 		// Input bytes passed directly via InputBytes — no memfs write
 
-		// Map profiles to dimensions
+		// Map profiles to dimensions (same presets as the CLI)
 		profileWidth := 1200
 		profileHeight := 1920
-		profiles := map[string][2]int{
-			"HR": {2400, 3840}, "SR": {1200, 1920},
-			"K1": {600, 670}, "K11": {1072, 1448},
-			"KV": {1072, 1448}, "KPW": {758, 1024},
-			"KPW5": {1236, 1648}, "KO": {1264, 1680},
-			"KS": {1860, 2480}, "KDX": {824, 1000},
-			"RM1": {1404, 1872}, "RM2": {1404, 1872},
-		}
-		if p, ok := profiles[wopts.Profile]; ok {
-			profileWidth = p[0]
-			profileHeight = p[1]
+		if p, ok := converter.NewProfiles()[wopts.Profile]; ok {
+			profileWidth = p.Width
+			profileHeight = p.Height
 		}
 
 		// Build EPUBOptions

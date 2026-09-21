@@ -2,7 +2,7 @@
 
 **Go version:** 1.26  
 **Module:** `github.com/druzn3k/go-comic-converter/v3`  
-**Test coverage:** 55.7%
+**Test coverage:** 61.0%
 
 Convert CBZ/CBR/Dir/PDF into EPUB, KEPUB, CBZ, or HTML for e-reader devices (Kindle, Kobo, reMarkable, ...)
 
@@ -20,12 +20,38 @@ via WebAssembly. No server needed — all processing is local.
 make wasm        # Build wasm/main.wasm
 make wasm-serve  # Open http://localhost:8080
 ```
+### Architecture
 
-Open `wasm/index.html` in a browser, drop a CBZ file, adjust options,
-and download the converted EPUB. Supports all output formats (EPUB, KEPUB,
-CBZ, HTML), all filter options, recipe system, and ComicInfo.xml metadata.
+Go WASM runs inside a Web Worker (`wasm/worker.js`) so the UI stays responsive.
+A memfs polyfill (`wasm/memfs.js`) provides the in-memory filesystem Go needs
+for file I/O. The main thread (`wasm/app.js`) posts file data and options to
+the worker, the Go pipeline runs inside the worker, and the result comes back
+as an ArrayBuffer for download. Progress is reported via the worker message
+protocol.
 
-See [PLAN.md](PLAN.md) for architecture details and future plans.
+| Key file | Purpose |
+|---|---|
+| `cmd/wasm/main.go` | Go WASM entry point — handles all formats, recipes, options |
+| `wasm/index.html` | Full options form: file drop, 30+ options, profile selector |
+| `wasm/app.js` | Main-thread bridge: drag-drop, form collection, progress, download |
+| `wasm/worker.js` | Web Worker hosting Go WASM runtime |
+| `wasm/memfs.js` | In-memory filesystem polyfill for Go WASM |
+| `wasm/wasm_exec.js` | Go WASM runtime (copied from `$(go env GOROOT)/lib/wasm/`) |
+
+### E2E tests (Playwright)
+
+End-to-end tests live in `wasm/e2e/`. They verify per-file error isolation,
+CBR input, and PDF input (including graceful handling of unsupported encodings).
+
+```sh
+# Terminal 1: serve the app
+make wasm-serve
+
+# Terminal 2: run tests
+cd wasm/e2e && npx playwright test
+```
+
+CI runs these automatically via the `wasm-e2e` job in `.github/workflows/ci.yml`.
 
 ## Features
 - Support input from zip, cbz, rar, cbr, pdf, directory
@@ -763,5 +789,5 @@ Previous milestones (all completed):
 - Watch mode with debouncing and temp-file filtering
 - Filter recipe system (YAML-defined processing pipelines)
 - ComicInfo.xml metadata for CBZ output
-- Test coverage raised from 26.5% to 55.7%
+- Test coverage raised from 26.5% to 61.0%
 - Go toolchain updated to 1.26

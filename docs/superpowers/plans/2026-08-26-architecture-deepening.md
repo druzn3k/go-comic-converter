@@ -29,17 +29,17 @@
 **Interfaces:**
 - No signature changes. `type Options = epuboptions.EPUBOptions`, the `viewport` re-exports, and `type EPUB interface` remain (deprecated) so public callers are not broken.
 
-- [ ] **Step 1: Delete the dead registry**
+- [x] **Step 1: Delete the dead registry**
   Delete `pkg/comic/registry.go` and the `TestRegistryRegisterLookup`, `TestRegistryLookupMissing`, `TestRegistryNames`, `TestRegistryConcurrentSafe` functions in `comic_test.go`. Verify no other reference: `grep -rn "newRegistry\|\.register(\|\.lookup(\|\.names()" pkg/` → only the deleted file.
 
-- [ ] **Step 2: Deprecate, don't delete, the public pass-throughs**
+- [x] **Step 2: Deprecate, don't delete, the public pass-throughs**
   Add `// Deprecated: use epuboptions.EPUBOptions directly.` above `type Options` in `pkg/comic/options.go`; `// Deprecated: import pkg/comic/viewport directly.` above the re-exports in `pkg/comic/viewport.go`; `// Deprecated: a single-implementation interface; New returns *epub.` above `type EPUB interface` in `pkg/epub/epub.go`. Do NOT change any return type or delete any symbol.
 
-- [ ] **Step 3: Run tests**
+- [x] **Step 3: Run tests**
   `go build ./... && go test ./pkg/comic/... ./pkg/epub/...`
   Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
   `git commit -m "refactor: delete dead registry; deprecate public pass-through aliases"`
 
 ---
@@ -59,26 +59,26 @@
 - Produces: `func defaultFilterConfigs(img epuboptions.Image) []FilterConfig` — TOTAL (not lossy) options→recipe bridge.
 - **`DefaultChain` / `DefaultChainOpts` remain** (the default processing path is NOT rewritten in this task — full single-engine collapse is deferred: the recipe path and default path have different double-page-split semantics, and unifying them risks pixel drift).
 
-- [ ] **Step 1: Relocate the five gift filters**
+- [x] **Step 1: Relocate the five gift filters**
   Move the five files into `pkg/comic/filters` (package `filters`), preserving constructor signatures. Update `default_chain.go` to call them directly (drop the `epubimagefilters` import). `grep -rn "epubimagefilters" --include="*.go"` → empty. Delete `internal/pkg/epubimagefilters/`.
 
-- [ ] **Step 2: Make the thin wrapper builtins the real implementations**
+- [x] **Step 2: Make the thin wrapper builtins the real implementations**
   Rewrite `builtin_crop.go` `AutoCropFilter.Apply`, `builtin_contrast.go` `AutoContrastFilter.Apply`, `builtin_orient.go` `CropSplitDoublePageFilter.Apply`, `builtin_blank.go` `PixelFilter.Apply` so each calls the relocated constructor directly (they already do — now in-package, no wrapper-over-wrapper). Fix `builtin_blank.go`'s `PixelFilter` to call `Pixel()` instead of re-implementing it. Do NOT change the `split_double_page` (`SplitDoublePageFilter`) semantics.
 
-- [ ] **Step 3: Remove the dead `FilterContext.ImageOptions`**
+- [x] **Step 3: Remove the dead `FilterContext.ImageOptions`**
   Delete the `ImageOptions epuboptions.Image` field from `FilterContext` (filter.go:16) and the single assignment in `processor.go` `transformImage`. `grep -rn "ImageOptions" pkg/comic/filters/ internal/pkg/epubimageprocessor/` → no readers.
 
-- [ ] **Step 4: Fix the bridge — make it total**
+- [x] **Step 4: Fix the bridge — make it total**
   In `main.go`, replace `optionsToFilterConfigs` with `defaultFilterConfigs(img epuboptions.Image) []filters.FilterConfig` that emits the FULL set matching `DefaultChain`: `split_double_page` (when `AutoSplitDoublePage`, params keep_original/manga), `auto_crop` (crop margins/limit/skip), `auto_contrast`, `contrast`/`brightness` (same int scale as DefaultChain — do NOT divide by 100), `resize`, `grayscale` (mode), `pixel`. Update the `-recipe-save` call site (main.go:264) to `defaultFilterConfigs(cmd.Options.Image)`. Add a unit test asserting `defaultFilterConfigs` output matches `DefaultChain`'s filter set for a representative config.
 
-- [ ] **Step 5: Golden parity test (generated pre-task)**
+- [x] **Step 5: Golden parity test (generated pre-task)**
   BEFORE any filter change (commit order matters): generate golden output from the current codebase — convert a fixed `testdata` image via the default path and commit its bytes as a fixture. Then implement Steps 1-4. Add a processor test (`processor_test.go`) that runs the default path and asserts byte-identity with the committed fixture. Run without `-update`.
 
-- [ ] **Step 6: Run tests**
+- [x] **Step 6: Run tests**
   `go build ./... && go test ./pkg/comic/filters/... ./internal/pkg/epubimageprocessor/... ./...`
   Expected: PASS, including the golden parity test (proving Steps 1-4 changed no pixel output).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
   `git commit -m "refactor: consolidate filter package; relocate epubimagefilters; total default bridge; drop dead FilterContext field"`
 
 ---
@@ -94,17 +94,17 @@
 - Produces: `func (i EPUBImage) StorageKey() string { return i.ImgPath() }` — the format-neutral key under which the processed image is stored in the temp ZIP (no `OEBPS/` prefix). `ImgPath()` already returns `"Images/img_<id>_p<part>.<format>"`.
 - Invariant: the key written by the processor (storage writer) and the key read by CBZ/HTML/KEPUB are identical and format-neutral.
 
-- [ ] **Step 1: Verify the current storage write key**
+- [x] **Step 1: Verify the current storage write key**
   Read `internal/pkg/epubimageprocessor/processor.go` and `internal/pkg/epubzip/storage_image_writer.go`; confirm the processor writes images under `EPUBImgPath()` (the `OEBPS/`-prefixed key). Record the exact call site.
 
-- [ ] **Step 2: Write under the neutral key; read under it**
+- [x] **Step 2: Write under the neutral key; read under it**
   Change the processor's storage-write to use `img.ImgPath()` (drop `OEBPS/`). Add `StorageKey()` to `epubimage.EPUBImage` returning `i.ImgPath()`. Update `cbz.go:86,96` and `html.go:84,92` to use `.StorageKey()`. Ensure `EPUBImgPath()` still returns `"OEBPS/" + i.ImgPath()` (EPUB rendering unchanged).
 
-- [ ] **Step 3: Run tests**
+- [x] **Step 3: Run tests**
   `go test ./pkg/comic/output/... ./internal/pkg/epubimageprocessor/... ./internal/pkg/epubimage/...`
   Expected: PASS (CBZ/HTML/KEPUB/EPUB still read the images they wrote).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
   `git commit -m "refactor: format-neutral StorageKey; decouple CBZ/HTML from EPUB ZIP layout"`
 
 ---
@@ -124,26 +124,26 @@
 - Produces: `func epubwriter.Write(ctx context.Context, parts []Part, variant Variant, opts epuboptions.EPUBOptions) error`
 - `epubwriter` imports only `epubimage`, `epubzip`, `epubtemplates`, `epuboptions`, `epubimageprocessor` — **never** `pkg/comic` or `pkg/comic/output` (cycle guard). `comic.GetParts` stays in `pkg/comic`; callers (pkg/epub) convert `comic.Part` → `epubwriter.Part`; `kepub.go` converts its received `[]OutputPart` → `[]epubwriter.Part` (no re-load, no re-split).
 
-- [ ] **Step 1: Export the KEPUB text template**
+- [x] **Step 1: Export the KEPUB text template**
   Create `internal/pkg/epubtemplates/kepub_text.go`: `var KepubText string` holding the exact `kepubTextTemplate` string from `kepub.go:43-55` (kobolink wrapper, `{{.ImagePath}}` without `../`). Delete the inline `kepubTextTemplate` in kepub.go.
 
-- [ ] **Step 2: Build the shared writer**
+- [x] **Step 2: Build the shared writer**
   Port into `epubwriter.go` the EPUB-side implementations of `xmlEscape`, `render`, `getTree` (with `StripFirstDirectoryFromToc`), `computeViewPort`, `writePart`, `writeCoverImage`, `writeTitleImage`, `writePageImage`/`writeImage`, `writeBlank`, and the zip-writing `Write` loop. Replace the EPUB/KEPUB differences with `Variant` fields: `TextTemplate` (page template), `KoboStyle` (inject `<meta name="kobo-style" content="kobostyle"/>`), `AppleBooks` (write `META-INF/com.apple.ibooks.display-options.xml`), `EscapeTitle` (wrap `html.EscapeString(title)`), `Extension`. The writer opens `epubzip.NewStorageImageReader(opts.ImgStorage())` itself.
 
-- [ ] **Step 3: EPUB as a thin adapter**
+- [x] **Step 3: EPUB as a thin adapter**
   `pkg/epub/epub.go`: `New(opts)` returns `*epub` (per T1 deprecation it may keep the `EPUB` interface). `Write(ctx)` calls `comic.GetParts`, converts to `[]epubwriter.Part`, and calls `epubwriter.Write(ctx, parts, epubVariant, opts)` where `epubVariant = Variant{Extension:".epub", TextTemplate:epubtemplates.Text, KoboStyle:false, AppleBooks:true, EscapeTitle:true}`.
 
-- [ ] **Step 4: KEPUB as a thin adapter**
+- [x] **Step 4: KEPUB as a thin adapter**
   `pkg/comic/output/kepub.go`: keep `KEPUBWriter` + `Format/Extension/SupportsPartSplit`. `Write(ctx, parts, opts)` converts the passed `[]OutputPart` → `[]epubwriter.Part` and calls `epubwriter.Write(ctx, parts, kepubVariant, opts)` where `kepubVariant = Variant{Extension:".kepub.epub", TextTemplate:epubtemplates.KepubText, KoboStyle:true, AppleBooks:false, EscapeTitle:false}`. Delete the duplicated `xmlEscape`, `getTree`, `computeViewPort`, `writePart`, `writeCoverImage`, `writeTitleImage`, `writePageImage`, `writeBlank`, `processImages`, `kepubContentData`, `generateContentOPF`, `kepubTextTemplate` (~450 lines).
 
-- [ ] **Step 5: Golden parity tests (generated pre-task)**
+- [x] **Step 5: Golden parity tests (generated pre-task)**
   BEFORE Step 2: generate and commit golden `.epub` and `.kepub.epub` ZIP fixtures from the pre-task codebase (one fixed input). After Steps 1-4, add tests asserting the post-task EPUB and KEPUB outputs are byte-identical to those fixtures. Also assert `kepub.go` no longer re-splits parts (its output matches when fed the same `[]OutputPart` that `comic.GetParts` produced).
 
-- [ ] **Step 6: Run tests**
+- [x] **Step 6: Run tests**
   `go test ./pkg/epub/... ./pkg/comic/output/... ./...`
   Expected: PASS, including golden parity.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
   `git commit -m "refactor: unify EPUB and KEPUB writers behind internal/pkg/epubwriter"`
 
 ---
@@ -163,28 +163,28 @@
 - Produces: `output.Get("epub")` returns an `OutputWriter`. `output.Available()` returns `["cbz","epub","html","kepub"]`.
 - Produces: the recipe chain flows into every writer. Add `type ChainCarrier interface { SetRecipe(*filters.Chain) }`; `Convert` type-asserts the returned writer to it and calls `SetRecipe`. `EPUBWriter` and `KEPUBWriter` implement it and pass the chain to `pkg/epub`.
 
-- [ ] **Step 1: Register EPUB as an OutputWriter**
+- [x] **Step 1: Register EPUB as an OutputWriter**
   Create `pkg/comic/output/epub.go`: `EPUBWriter` with `Format() "epub"`, `Extension() ".epub"`, `SupportsPartSplit() true`, and `Write(ctx, parts, opts)` → convert `[]OutputPart` → `[]epubwriter.Part`, call `epub.New(opts).WriteParts(ctx, epubwriterParts, opts)`. Add `init(){ Register(...) }`.
 
-- [ ] **Step 2: Thread the recipe chain**
+- [x] **Step 2: Thread the recipe chain**
   In `pkg/comic/output/output.go`, add `type ChainCarrier interface { SetRecipe(*filters.Chain) }`. In `pkg/comic/converter.go` `Convert`/`writeAll`, after `output.Get(format)`, if the writer implements `ChainCarrier`, call `SetRecipe(c.chain)`. Implement `SetRecipe` on `EPUBWriter` and `KEPUBWriter` (store the chain; pass to `pkg/epub` which applies it in its image processor).
 
-- [ ] **Step 3: Simplify `main.go` dispatch**
+- [x] **Step 3: Simplify `main.go` dispatch**
   Delete the `format=="epub"` special case (main.go:342-355) and the duplicated `all` loop; route every format (including `epub`) through `runSingleFormat`/`comic.Converter`. `-output-format all` fans out via `converter.go`'s `writeAll` (which now includes epub).
 
-- [ ] **Step 4: Simplify `comic.Converter.Convert`**
+- [x] **Step 4: Simplify `comic.Converter.Convert`**
   Delete the `format==""||format=="epub"` error (converter.go:86-89). Implement `writeAll` to iterate `output.Available()` (now includes epub).
 
-- [ ] **Step 5: Fix the server worker**
+- [x] **Step 5: Fix the server worker**
   `server.go` `runWorker`: replace `epub.New(opts).Write(ctx)` with `comic.New(opts).Convert(ctx)`; default `opts.OutputFormat` to `"epub"` when empty so the HTTP contract is preserved. Add a test that a submitted job still yields an `.epub`.
 
-- [ ] **Step 6: Fix wasm recipe path**
+- [x] **Step 6: Fix wasm recipe path**
   `cmd/wasm/main.go`: when `Recipe` is set, use `comic.NewWithRecipe(opts, chain).Convert(ctx)`; else `comic.New(opts).Convert(ctx)`. This makes `-recipe` reach EPUB.
 
-- [ ] **Step 7: Run tests**
+- [x] **Step 7: Run tests**
   `go test ./...`; assert `output.Available()` contains all four formats and `-output-format all` writes all four.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
   `git commit -m "refactor: route EPUB through the output-dispatch seam; recipe reaches EPUB"`
 
 ---

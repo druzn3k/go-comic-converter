@@ -181,8 +181,8 @@ func (c *Converter) InitParse() {
 
 	c.AddSection("Recipe")
 	c.AddStringParam(&c.Options.Recipe, "recipe", "", "Processing recipe: builtin name or path to YAML file")
-	c.AddBoolParam(&c.Options.RecipeShow, "recipe-show", false, "Print the effective filter chain and exit")
-	c.AddBoolParam(&c.Options.RecipeSave, "recipe-save", false, "Save current filter configuration as a recipe YAML")
+	c.AddBoolParam(&c.Options.RecipeShow, "recipe-show", false, "Print the effective filter chain to stdout and exit")
+	c.AddBoolParam(&c.Options.RecipeSave, "recipe-save", false, "Print current filter configuration as a recipe YAML on stdout")
 }
 
 // Usage Customize version of FlagSet.PrintDefaults

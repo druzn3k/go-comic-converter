@@ -201,7 +201,7 @@ func generate(ctx context.Context, cmd *converter.Converter) {
 			"default_chain": "Uses standard processing (crop, contrast, resize, grayscale, etc.)",
 		}
 		out, _ := yaml.Marshal(info)
-		utils.Println(string(out))
+		fmt.Print(string(out))
 		os.Exit(0)
 	}
 	if cmd.Options.RecipeSave && cmd.Options.Recipe == "" {
@@ -215,7 +215,7 @@ func generate(ctx context.Context, cmd *converter.Converter) {
 		if err != nil {
 			cmd.Fatal(fmt.Errorf("failed to marshal recipe: %w", err))
 		}
-		utils.Println(string(out))
+		fmt.Print(string(out))
 		os.Exit(0)
 	}
 	var chain *filters.Chain
@@ -230,7 +230,7 @@ func generate(ctx context.Context, cmd *converter.Converter) {
 				"recipe":  cmd.Options.Recipe,
 				"filters": fmt.Sprintf("%d filter(s)", chain.Len()),
 			})
-			utils.Println(string(recipeData))
+			fmt.Print(string(recipeData))
 			os.Exit(0)
 		}
 	}
