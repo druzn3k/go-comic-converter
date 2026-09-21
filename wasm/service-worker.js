@@ -1,7 +1,7 @@
 // service-worker.js — Offline PWA cache for go-comic-converter WASM app
 // Cache-first for .wasm binary, stale-while-revalidate for static assets.
 
-const CACHE_NAME = 'go-comic-converter-v2';
+const CACHE_NAME = 'go-comic-converter-v3';
 
 // Assets to pre-cache on install
 const PRECACHE_ASSETS = [
@@ -10,7 +10,6 @@ const PRECACHE_ASSETS = [
   'app.js',
   'wasm_exec.js',
   'memfs.js',
-  'worker.js',
   'manifest.json',
   'icons/icon-192.png',
   'icons/icon-512.png',
