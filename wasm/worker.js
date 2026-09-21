@@ -1,7 +1,10 @@
 // worker.js — Go WASM Web Worker for go-comic-converter
 // Runs go-comic-converter off the main thread so the UI stays responsive.
 
-importScripts('wasm_exec.js', 'memfs.js');
+// Compute base URL: when loaded from HTTP use relative paths; when loaded
+// from a blob (e.g. after service-worker interception) fall back to origin.
+var _base = self.location.protocol === 'blob:' ? self.location.origin + '/' : '';
+importScripts(_base + 'wasm_exec.js', _base + 'memfs.js');
 
 let goInstance = null;
 let wasmReady = false;
@@ -18,11 +21,11 @@ async function initWasm() {
     goInstance = go;
 
     // Fetch using the versioned WASM binary if available, otherwise main.wasm
-    let wasmUrl = 'main.wasm';
+    let wasmUrl = _base + 'main.wasm';
     try {
-      const resp = await fetch('version.json');
+      const resp = await fetch(_base + 'version.json');
       const version = await resp.json();
-      if (version.wasm) wasmUrl = version.wasm;
+      if (version.wasm) wasmUrl = _base + version.wasm;
     } catch (_) {
       // No version.json — use default
     }
@@ -37,7 +40,7 @@ async function initWasm() {
   } catch (err) {
     // Fallback for browsers without streaming support
     try {
-      const resp = await fetch('main.wasm');
+      const resp = await fetch(_base + 'main.wasm');
       const bytes = await resp.arrayBuffer();
       const result = await WebAssembly.instantiate(bytes, go.importObject);
       go.run(result.instance);
