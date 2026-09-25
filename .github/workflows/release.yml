@@ -66,6 +66,3 @@ jobs:
           platforms: linux/amd64,linux/arm64
           # SPDX SBOM attestation alongside the default SLSA provenance
           sbom: true
-          # reuse layers between releases; the builder stage is emulated for arm64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
