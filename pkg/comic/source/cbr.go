@@ -115,6 +115,8 @@ func (c *cbrSource) Load(ctx context.Context) (<-chan epubimageloader.Task, int,
 
 	// Send file to the queue
 	output := make(chan epubimageloader.Task, maxProcs())
+	results := make(chan indexedTask, maxProcs())
+	go pumpOrdered(results, output)
 	wg := &sync.WaitGroup{}
 
 	// Check if feeder had an immediate error
@@ -159,19 +161,20 @@ func (c *cbrSource) Load(ctx context.Context) (<-chan epubimageloader.Task, int,
 				if err != nil {
 					img = epubimageloader.CorruptedImage(p, fn)
 				}
-				output <- epubimageloader.Task{
+				results <- indexedTask{job.Id, epubimageloader.Task{
+
 					Id:    job.Id,
 					Image: img,
 					Path:  p,
 					Name:  fn,
 					Error: err,
-				}
+				}}
 			}
 		}()
 	}
 	go func() {
 		wg.Wait()
-		close(output)
+		close(results)
 	}()
 
 	// Check for feeder errors after workers drain
@@ -269,6 +272,8 @@ func (c *cbrBytesSource) Load(ctx context.Context) (<-chan epubimageloader.Task,
 	}()
 
 	output := make(chan epubimageloader.Task, maxProcs())
+	results := make(chan indexedTask, maxProcs())
+	go pumpOrdered(results, output)
 	wg := &sync.WaitGroup{}
 
 	// Check if feeder had an immediate error
@@ -312,19 +317,20 @@ func (c *cbrBytesSource) Load(ctx context.Context) (<-chan epubimageloader.Task,
 				if err != nil {
 					img = epubimageloader.CorruptedImage(p, fn)
 				}
-				output <- epubimageloader.Task{
+				results <- indexedTask{job.Id, epubimageloader.Task{
+
 					Id:    job.Id,
 					Image: img,
 					Path:  p,
 					Name:  fn,
 					Error: err,
-				}
+				}}
 			}
 		}()
 	}
 	go func() {
 		wg.Wait()
-		close(output)
+		close(results)
 	}()
 
 	// Check for feeder errors after workers drain

@@ -67,6 +67,8 @@ func (d *dirSource) Load(ctx context.Context) (<-chan epubimageloader.Task, int,
 
 	// Read in parallel and get an image
 	output := make(chan epubimageloader.Task, maxProcs())
+	results := make(chan indexedTask, maxProcs())
+	go pumpOrdered(results, output)
 	wg := &sync.WaitGroup{}
 	for range decodeWorkers() {
 		wg.Add(1)
@@ -97,13 +99,14 @@ func (d *dirSource) Load(ctx context.Context) (<-chan epubimageloader.Task, int,
 				if err != nil {
 					img = epubimageloader.CorruptedImage(p, fn)
 				}
-				output <- epubimageloader.Task{
+				results <- indexedTask{job.Id, epubimageloader.Task{
+
 					Id:    job.Id,
 					Image: img,
 					Path:  p,
 					Name:  fn,
 					Error: err,
-				}
+				}}
 			}
 		}()
 	}
@@ -111,7 +114,7 @@ func (d *dirSource) Load(ctx context.Context) (<-chan epubimageloader.Task, int,
 	// Wait all done and close
 	go func() {
 		wg.Wait()
-		close(output)
+		close(results)
 	}()
 
 	return output, totalImages, nil

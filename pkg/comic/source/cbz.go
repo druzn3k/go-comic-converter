@@ -69,6 +69,8 @@ func (c *cbzSource) Load(ctx context.Context) (<-chan epubimageloader.Task, int,
 	}()
 
 	output := make(chan epubimageloader.Task, maxProcs())
+	results := make(chan indexedTask, maxProcs())
+	go pumpOrdered(results, output)
 	wg := &sync.WaitGroup{}
 	for range decodeWorkers() {
 		wg.Add(1)
@@ -94,20 +96,21 @@ func (c *cbzSource) Load(ctx context.Context) (<-chan epubimageloader.Task, int,
 				if err != nil {
 					img = epubimageloader.CorruptedImage(p, fn)
 				}
-				output <- epubimageloader.Task{
+				results <- indexedTask{job.Id, epubimageloader.Task{
+
 					Id:    job.Id,
 					Image: img,
 					Path:  p,
 					Name:  fn,
 					Error: err,
-				}
+				}}
 			}
 		}()
 	}
 
 	go func() {
 		wg.Wait()
-		close(output)
+		close(results)
 		_ = r.Close()
 	}()
 
@@ -177,6 +180,8 @@ func (c *cbzBytesSource) Load(ctx context.Context) (<-chan epubimageloader.Task,
 	}()
 
 	output := make(chan epubimageloader.Task, maxProcs())
+	results := make(chan indexedTask, maxProcs())
+	go pumpOrdered(results, output)
 	wg := &sync.WaitGroup{}
 	for range decodeWorkers() {
 		wg.Add(1)
@@ -202,20 +207,21 @@ func (c *cbzBytesSource) Load(ctx context.Context) (<-chan epubimageloader.Task,
 				if err != nil {
 					img = epubimageloader.CorruptedImage(p, fn)
 				}
-				output <- epubimageloader.Task{
+				results <- indexedTask{job.Id, epubimageloader.Task{
+
 					Id:    job.Id,
 					Image: img,
 					Path:  p,
 					Name:  fn,
 					Error: err,
-				}
+				}}
 			}
 		}()
 	}
 
 	go func() {
 		wg.Wait()
-		close(output)
+		close(results)
 	}()
 
 	return output, totalImages, nil
