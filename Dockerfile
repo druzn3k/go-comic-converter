@@ -1,7 +1,10 @@
 # =============================================================================
 # Stage 1: Build the Go binary
 # =============================================================================
-FROM golang:1.23-alpine AS builder
+FROM golang:1.27-alpine AS builder
+
+# Release workflow passes the pushed tag; local builds stay "(devel)"
+ARG VERSION="(devel)"
 
 RUN apk add --no-cache git ca-certificates
 
@@ -14,9 +17,9 @@ RUN go mod download
 # Source layer — invalidated on any source change
 COPY . .
 
-# Static binary, stripped
+# Static binary, stripped, version embedded from the tag
 RUN CGO_ENABLED=0 go build \
-    -ldflags="-s -w" \
+    -ldflags="-s -w -X main.version=${VERSION}" \
     -o /go-comic-converter \
     .
 

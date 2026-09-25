@@ -11,3 +11,5 @@ wasm/main.wasm
 wasm/main.*.wasm
 wasm/version.json
 wasm/wasm_exec.js
+# GoReleaser output
+dist/

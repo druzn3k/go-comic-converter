@@ -28,10 +28,14 @@
     const entry = store.get(path);
     if (!entry) return null;
     const isDir = entry.data === null;
+    const size = isDir ? 0 : entry.data.length;
     return {
       dev: 1, nlink: 1, rdev: 0, blksize: 4096, ino: 0,
+      // syscall.setStat reads every field with .Int(); a missing one (e.g. blocks)
+      // panics the Go runtime with "call of Value.Int on undefined".
+      blocks: Math.ceil(size / 512),
       mode: isDir ? 0o755 | 0o40000 : (entry.mode || 0o644) | 0o100000,
-      uid: 0, gid: 0, size: isDir ? 0 : entry.data.length,
+      uid: 0, gid: 0, size,
       atimeMs: Date.now(), mtimeMs: Date.now(), ctimeMs: Date.now(),
       isDirectory() { return isDir; },
     };

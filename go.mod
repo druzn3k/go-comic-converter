@@ -1,6 +1,6 @@
 module github.com/druzn3k/go-comic-converter/v3
 
-go 1.26
+go 1.27
 
 require (
 	github.com/beevik/etree v1.5.0

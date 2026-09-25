@@ -17,6 +17,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime/debug"
+	"strings"
 	"syscall"
 	"time"
 
@@ -31,6 +32,11 @@ import (
 	"github.com/druzn3k/go-comic-converter/v3/pkg/comic/filters"
 )
 
+// version is set at release time via
+// -ldflags "-X main.version=<tag>" (see .goreleaser.yml) or the Dockerfile
+// VERSION build arg; "(devel)" for local/dev builds.
+var version = "(devel)"
+
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -44,7 +50,7 @@ func main() {
 
 	switch {
 	case cmd.Options.Version:
-		version()
+		printVersion()
 	case cmd.Options.Serve != "":
 		serve(ctx, cmd)
 	case cmd.Options.Batch != "":
@@ -62,23 +68,34 @@ func main() {
 	}
 }
 
-func version() {
+func printVersion() {
 	bi, ok := debug.ReadBuildInfo()
 	if !ok {
 		utils.Fatalln("failed to fetch current version")
 	}
 
+	// `go install ...@vX.Y.Z` binaries carry the version in build info instead of
+	// ldflags. Only accept a clean release tag there — pseudo-versions from VCS
+	// stamping (v3.0.0-<ts>-<sha>+dirty) and prereleases stay "(devel)".
+	v := version
+	if v == "(devel)" && strings.HasPrefix(bi.Main.Version, "v") &&
+		!strings.ContainsAny(bi.Main.Version, "-+") {
+		v = bi.Main.Version
+	}
+
 	utils.Printf("go-comic-converter\n")
 	utils.Printf("  Path             : %s\n", bi.Main.Path)
 	utils.Printf("  Sum              : %s\n", bi.Main.Sum)
-	utils.Printf("  Version          : %s\n\n", bi.Main.Version)
+	utils.Printf("  Version          : %s\n\n", v)
 
 	latestVersion := "unknown"
 	resp, err := http.Get("https://api.github.com/repos/druzn3k/go-comic-converter/tags")
 	if err == nil {
 		defer resp.Body.Close()
 		if resp.StatusCode == http.StatusOK {
-			var tags []struct{ Name string `json:"name"` }
+			var tags []struct {
+				Name string `json:"name"`
+			}
 			if err := json.NewDecoder(resp.Body).Decode(&tags); err == nil && len(tags) > 0 {
 				latestVersion = tags[0].Name
 			}

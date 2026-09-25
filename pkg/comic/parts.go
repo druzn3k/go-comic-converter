@@ -44,7 +44,10 @@ func GetParts(ctx context.Context, proc epubimageprocessor.EPUBImageProcessor, o
 
 	parts = make([]Part, 0)
 	cover := images[0]
-	if opts.Image.HasCover || (cover.DoublePage && !opts.Image.KeepDoublePageIfSplit) {
+	// Keep the cover in the image list when it is the only page: stripping it
+	// would leave a part with no images at all, which the writers cannot render
+	// (and a book needs at least one spine item). Only strip when other pages remain.
+	if len(images) > 1 && (opts.Image.HasCover || (cover.DoublePage && !opts.Image.KeepDoublePageIfSplit)) {
 		images = images[1:]
 	}
 

@@ -1,6 +1,6 @@
 # go-comic-converter
 
-**Go version:** 1.26  
+**Go version:** 1.27  
 **Module:** `github.com/druzn3k/go-comic-converter/v3`  
 **Test coverage:** 61.0%
 
@@ -121,6 +121,13 @@ $ go-comic-converter -profile SR -input ~/Download/MyComic -output-format html
 
 # Installation
 
+## Prebuilt binaries
+
+Every `v*` tag publishes archives on
+[GitHub Releases](https://github.com/druzn3k/go-comic-converter/releases):
+`linux`, `darwin` (macOS), and `windows` on `amd64` and `arm64`
+(`tar.gz`, `zip` on Windows), plus a `checksums.txt` to verify them.
+
 ## From source
 
 First ensure to have a working version of GO: [Installation](https://go.dev/doc/install)
@@ -145,6 +152,15 @@ $ go install github.com/druzn3k/go-comic-converter/v3@COMMIT_HASH
 ## Docker
 
 A multi-stage Docker image is provided for containerized usage:
+
+Multi-arch images (`linux/amd64`, `linux/arm64`) are published to GHCR on every `v*` tag
+(authenticate with `docker login ghcr.io` while the package is private):
+```
+$ docker pull ghcr.io/druzn3k/go-comic-converter:latest
+$ docker run --rm ghcr.io/druzn3k/go-comic-converter:latest --help
+```
+
+Or build it locally:
 
 ```
 $ docker build -t go-comic-converter .
@@ -768,6 +784,19 @@ Other:
   -help
     	Show this help message
 
+# Releasing
+
+Push a semver tag; `.github/workflows/release.yml` then runs GoReleaser (6 archives
+plus `checksums.txt` attached to the GitHub Release) and pushes a multi-arch image
+to `ghcr.io/druzn3k/go-comic-converter`, tagged `vX.Y.Z`, `X.Y.Z`, and `latest`:
+
+```
+$ git tag v3.0.0
+$ git push origin v3.0.0
+```
+
+The first push to a new GHCR package is private — set it public once in the package settings.
+
 # Credit
 
 This project is largely inspired from KCC (Kindle Comic Converter). Thanks:
@@ -790,4 +819,5 @@ Previous milestones (all completed):
 - Filter recipe system (YAML-defined processing pipelines)
 - ComicInfo.xml metadata for CBZ output
 - Test coverage raised from 26.5% to 61.0%
-- Go toolchain updated to 1.26
+- Go toolchain updated to 1.27
+- GitHub Releases (cross-platform binaries + `checksums.txt`) and multi-arch GHCR Docker image via GitHub Actions
