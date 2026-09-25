@@ -90,11 +90,14 @@ func (d *dirSource) Load(ctx context.Context) (<-chan epubimageloader.Task, int,
 					_ = f.Close()
 				}
 
-				p, fn := filepath.Split(job.Path)
-				if p == input {
-					p = ""
-				} else {
-					p = p[len(input)+1:]
+				_, fn := filepath.Split(job.Path)
+				// Path is the subdirectory of the input that holds the image, relative to
+				// the input. WalkDir cleans the root out of the walked path, so slicing
+				// the split directory by len(input)+1 panicked for "-input ." on a flat
+				// directory and produced wrong paths for nested files.
+				p := ""
+				if rel, rerr := filepath.Rel(input, filepath.Dir(job.Path)); rerr == nil && rel != "." {
+					p = rel
 				}
 				if err != nil {
 					img = epubimageloader.CorruptedImage(p, fn)
