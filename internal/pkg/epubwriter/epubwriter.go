@@ -148,9 +148,10 @@ func outputPath(output, extension string, currentPart, totalParts int) string {
 
 	suffix := ""
 	if totalParts > 1 {
-		fmtLen := utils.FormatNumberOfDigits(totalParts)
-		fmtPart := "Part " + fmtLen + " of " + fmtLen
-		suffix = fmt.Sprintf(fmtPart, currentPart, totalParts)
+		// Match the "<base> Part 1 of 2<ext>" naming the cbz and html writers use.
+		// The suffix used to be concatenated with no separator, producing
+		// "inPart 1 of 2.epub" for the same conversion.
+		suffix = fmt.Sprintf(" Part %d of %d", currentPart, totalParts)
 	}
 	return base + suffix + extension
 }
