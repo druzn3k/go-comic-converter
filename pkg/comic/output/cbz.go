@@ -88,8 +88,13 @@ func (w CBZWriter) writeCBZ(outputPath string, part OutputPart, imgStorage epubz
 	}
 	entries = append(entries, coverEntry)
 
-	// Page images
+	// Page images. A single-page part keeps its only page as both cover and page,
+	// so skip it here to avoid writing the same image under the same name twice.
+	coverKey := part.Cover.StorageKey()
 	for _, img := range part.Images {
+		if img.StorageKey() == coverKey {
+			continue
+		}
 		entries = append(entries, imgEntry{
 			ID:       img.Id,
 			Part:     img.Part,
