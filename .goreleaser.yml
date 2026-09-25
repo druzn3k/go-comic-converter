@@ -25,6 +25,10 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
+release:
+  # tags with a prerelease suffix (v3.1.0-rc1) publish as GitHub prereleases
+  prerelease: auto
+
 changelog:
   sort: asc
   filters:
