@@ -289,7 +289,9 @@ func generate(ctx context.Context, cmd *converter.Converter) {
 		}
 	} else {
 		// OutputWriter path: load images, dispatch to format writer
-		runSingleFormat(ctx, format, cmd.Options.EPUBOptions, cmd, chain)
+		if err := runSingleFormat(ctx, format, cmd.Options.EPUBOptions, cmd, chain); err != nil {
+			cmd.Fatal(err)
+		}
 	}
 
 	if !cmd.Options.Dry {
