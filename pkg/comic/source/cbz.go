@@ -33,8 +33,14 @@ func (c *cbzSource) Load(ctx context.Context) (<-chan epubimageloader.Task, int,
 	}
 
 	images := make([]*zip.File, 0)
+	seen := make(map[string]bool, len(r.File))
 	for _, f := range r.File {
-		if !f.FileInfo().IsDir() && isSupportedImage(f.Name) {
+		// A zip may repeat an entry name, and ids are assigned per name further
+		// down, so keeping both entries gave two images the same id and the writer
+		// dereferenced a missing one (SIGSEGV). First occurrence wins, matching
+		// zip.Reader.Open.
+		if !f.FileInfo().IsDir() && isSupportedImage(f.Name) && !seen[f.Name] {
+			seen[f.Name] = true
 			images = append(images, f)
 		}
 	}
@@ -145,8 +151,14 @@ func (c *cbzBytesSource) Load(ctx context.Context) (<-chan epubimageloader.Task,
 	}
 
 	images := make([]*zip.File, 0)
+	seen := make(map[string]bool, len(r.File))
 	for _, f := range r.File {
-		if !f.FileInfo().IsDir() && isSupportedImage(f.Name) {
+		// A zip may repeat an entry name, and ids are assigned per name further
+		// down, so keeping both entries gave two images the same id and the writer
+		// dereferenced a missing one (SIGSEGV). First occurrence wins, matching
+		// zip.Reader.Open.
+		if !f.FileInfo().IsDir() && isSupportedImage(f.Name) && !seen[f.Name] {
+			seen[f.Name] = true
 			images = append(images, f)
 		}
 	}

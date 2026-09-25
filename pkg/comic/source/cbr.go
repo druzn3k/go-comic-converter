@@ -34,8 +34,12 @@ func (c *cbrSource) Load(ctx context.Context) (<-chan epubimageloader.Task, int,
 	}
 
 	names := make([]string, 0)
+	seen := make(map[string]bool, len(files))
 	for _, f := range files {
-		if !f.IsDir && isSupportedImage(f.Name) {
+		// Duplicate entry names would collapse onto a single id below, so the id is
+		// only unique if names are. Keep the first occurrence.
+		if !f.IsDir && isSupportedImage(f.Name) && !seen[f.Name] {
+			seen[f.Name] = true
 			if f.Solid {
 				isSolid = true
 			}
@@ -351,6 +355,7 @@ func (c *cbrBytesSource) listEntries() ([]string, error) {
 	}
 
 	names := make([]string, 0)
+	seen := make(map[string]bool)
 	for {
 		h, rerr := r.Next()
 		if rerr != nil {
@@ -359,7 +364,10 @@ func (c *cbrBytesSource) listEntries() ([]string, error) {
 			}
 			return nil, rerr
 		}
-		if !h.IsDir && isSupportedImage(h.Name) {
+		// Duplicate entry names would collapse onto a single id below, so the id is
+		// only unique if names are. Keep the first occurrence.
+		if !h.IsDir && isSupportedImage(h.Name) && !seen[h.Name] {
+			seen[h.Name] = true
 			names = append(names, h.Name)
 		}
 	}
